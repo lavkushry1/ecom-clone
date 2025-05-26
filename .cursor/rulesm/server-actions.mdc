@@ -1,0 +1,256 @@
+---
+description: Server Actions for Next.js + Firebase e-commerce
+globs: "**/actions/**"
+alwaysApply: false
+---
+
+# Server Actions for E-commerce
+
+## 1. Product Actions
+
+```typescript
+// lib/actions/productActions.ts
+'use server'
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
+import { adminDb } from '@/lib/firebase/admin';
+import { Product } from '@/types/firebase';
+
+const productSchema = z.object({
+  name: z.string().min(1, 'Product name is required'),
+  description: z.string().min(1, 'Description is required'),
+  price: z.number().min(0, 'Price must be positive'),
+  originalPrice: z.number().optional(),
+  category: z.string().min(1, 'Category is required'),
+  stock: z.number().min(0, 'Stock must be positive'),
+  featured: z.boolean().default(false),
+  tags: z.array(z.string()).default([]),
+  images: z.array(z.string()).min(1, 'At least one image is required'),
+});
+
+export async function createProduct(formData: FormData) {
+  try {
+    const rawData = {
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      price: Number(formData.get('price')),
+      originalPrice: formData.get('originalPrice') ? Number(formData.get('originalPrice')) : undefined,
+      category: formData.get('category') as string,
+      stock: Number(formData.get('stock')),
+      featured: formData.get('featured') === 'true',
+      tags: formData.get('tags') ? (formData.get('tags') as string).split(',').map(tag => tag.trim()) : [],
+      images: formData.getAll('images') as string[],
+    };
+
+    const validatedData = productSchema.parse(rawData);
+
+    const productRef = adminDb.collection('products').doc();
+    await productRef.set({
+      ...validatedData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    revalidatePath('/admin/products');
+    revalidatePath('/products');
+    
+    return { success: true, id: productRef.id };
+  } catch (error) {
+    console.error('Error creating product:', error);
+    if (error instanceof z.ZodError) {
+      return { success: false, errors: error.flatten().fieldErrors };
+    }
+    return { success: false, error: 'Failed to create product' };
+  }
+}
+```
+
+## 2. Order Actions
+
+```typescript
+// lib/actions/orderActions.ts
+'use server'
+
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { adminDb } from '@/lib/firebase/admin';
+import { generateTrackingNumber } from '@/lib/utils/tracking';
+
+const orderSchema = z.object({
+  items: z.array(z.object({
+    productId: z.string(),
+    name: z.string(),
+    price: z.number(),
+    quantity: z.number(),
+    image: z.string().optional(),
+  })),
+  totalAmount: z.number().min(0),
+  shippingAddress: z.object({
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
+    email: z.string().email(),
+    phone: z.string().min(10),
+    address: z.string().min(1),
+    city: z.string().min(1),
+    state: z.string().min(1),
+    zipCode: z.string().min(5),
+  }),
+  paymentMethod: z.enum(['upi', 'card']),
+  userId: z.string().optional(),
+  sessionId: z.string().optional(),
+});
+
+export async function createOrder(formData: FormData) {
+  try {
+    const rawData = {
+      items: JSON.parse(formData.get('items') as string),
+      totalAmount: Number(formData.get('totalAmount')),
+      shippingAddress: JSON.parse(formData.get('shippingAddress') as string),
+      paymentMethod: formData.get('paymentMethod') as 'upi' | 'card',
+      userId: formData.get('userId') as string || undefined,
+      sessionId: formData.get('sessionId') as string || undefined,
+    };
+
+    const validatedData = orderSchema.parse(rawData);
+
+    const orderRef = adminDb.collection('orders').doc();
+    const trackingNumber = generateTrackingNumber();
+
+    await orderRef.set({
+      ...validatedData,
+      status: 'pending',
+      paymentStatus: 'pending',
+      trackingNumber,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // Update product stock
+    for (const item of validatedData.items) {
+      const productRef = adminDb.collection('products').doc(item.productId);
+      await productRef.update({
+        stock: adminDb.FieldValue.increment(-item.quantity),
+      });
+    }
+
+    revalidatePath('/admin/orders');
+    
+    return { success: true, orderId: orderRef.id, trackingNumber };
+  } catch (error) {
+    console.error('Error creating order:', error);
+    if (error instanceof z.ZodError) {
+      return { success: false, errors: error.flatten().fieldErrors };
+    }
+    return { success: false, error: 'Failed to create order' };
+  }
+}
+```
+
+## Usage Guidelines
+
+### 1. Error Handling
+- Always wrap Server Actions in try-catch blocks
+- Use Zod for input validation
+- Return consistent response format: `{ success: boolean, data?, error?, errors? }`
+
+### 2. Revalidation
+- Use `revalidatePath()` to update cached pages after data changes
+- Revalidate both admin and public pages when necessary
+
+### 3. Security
+- Validate all inputs on the server side
+- Use Firebase Admin SDK for privileged operations
+- Implement proper authentication checks for admin actions
+- `apps/web/utils/actions/NAME.validation.ts`
+- `apps/web/utils/actions/NAME.ts`
+
+For `apps/web/utils/actions/NAME.validation.ts`:
+
+```typescript
+import { z } from "zod";
+
+// Example: Schema for updating AI settings
+export const saveAiSettingsBody = z.object({
+  aiProvider: z.string().optional(), // Adjust types as needed
+  aiModel: z.string().optional(),
+  aiApiKey: z.string().optional(),
+});
+export type SaveAiSettingsBody = z.infer<typeof saveAiSettingsBody>;
+
+// Example: Schema for updating email settings (requires emailAccountId binding)
+export const saveEmailUpdateSettingsBody = z.object({
+  statsEmailFrequency: z.string().optional(), // Use specific enum/types if applicable
+  summaryEmailFrequency: z.string().optional(),
+});
+export type SaveEmailUpdateSettingsBody = z.infer<
+  typeof saveEmailUpdateSettingsBody
+>;
+
+```
+
+For `apps/web/utils/actions/NAME.ts`:
+
+```typescript
+"use server";
+
+import { actionClient, actionClientUser } from "@/utils/actions/safe-action";
+import {
+  saveAiSettingsBody,
+  saveEmailUpdateSettingsBody,
+} from "@/utils/actions/settings.validation"; // Adjust path
+import prisma from "@/utils/prisma";
+import { revalidatePath } from "next/cache"; // Import if needed for cache invalidation
+
+// Example using actionClientUser (requires authenticated user context)
+export const updateAiSettingsAction = actionClientUser
+  .metadata({ name: "updateAiSettings" }) // For logging/instrumentation
+  .schema(saveAiSettingsBody) // Zod schema for input validation
+  .action(
+    async ({
+      ctx: { userId }, // Access context provided by the safe-action client
+      parsedInput: { aiProvider, aiModel, aiApiKey }, // Validated and typed input
+    }) => {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { aiProvider, aiModel, aiApiKey },
+      });
+    },
+  );
+
+// Example using actionClient (requires authenticated user + bound emailAccountId)
+export const updateEmailSettingsAction = actionClient
+  .metadata({ name: "updateEmailSettings" })
+  .schema(saveEmailUpdateSettingsBody)
+  // Note: emailAccountId is bound when calling this action from the client
+  .action(
+    async ({
+      ctx: { emailAccountId }, // Access context (includes userId, email etc.)
+      parsedInput: { statsEmailFrequency, summaryEmailFrequency },
+    }) => {
+      await prisma.emailAccount.update({
+        where: { id: emailAccountId },
+        data: {
+          statsEmailFrequency,
+          summaryEmailFrequency,
+        },
+      });
+    },
+  );
+
+```
+
+## Implementation Guidelines
+- **Use `next-safe-action`:** Implement all server actions using the `next-safe-action` library for type safety, input validation, context management, and error handling. Refer to `apps/web/utils/actions/safe-action.ts` for client definitions (`actionClient`, `actionClientUser`, `adminActionClient`).
+- **Choose the Right Client:**
+    - `actionClientUser`: Use when only authenticated user context (`userId`) is needed.
+    - `actionClient`: Use when both authenticated user context *and* a specific `emailAccountId` are needed. The `emailAccountId` must be bound when calling the action from the client.
+    - `adminActionClient`: Use for actions restricted to admin users.
+- **Input Validation:** Define input validation schemas using Zod in the corresponding `.validation.ts` file. These schemas are used by `next-safe-action` (`.schema()`) and can also be reused on the client for form validation.
+- **Context (`ctx`):** Access necessary context (like `userId`, `emailAccountId`, etc.) provided by the safe action client via the `ctx` object in the `.action()` handler.
+- **Mutations Only:** Server Actions are **strictly for mutations** (operations that change data, e.g., creating, updating, deleting). **Do NOT use Server Actions for data fetching (GET operations).**
+    - For data fetching, use dedicated [GET API Routes](mdc:.cursor/rules/get-api-route.mdc) combined with [SWR Hooks](mdc:.cursor/rules/data-fetching.mdc).
+- **Error Handling:** `next-safe-action` provides centralized error handling. Use `SafeError` for expected/handled errors within actions if needed (see `apps/web/utils/actions/safe-action.ts`).
+- **Instrumentation:** Sentry instrumentation is automatically applied via `withServerActionInstrumentation` within the safe action clients. Use the `.metadata({ name: "actionName" })` method to provide a meaningful name for monitoring.
+- **Cache Invalidation:** If an action modifies data displayed elsewhere, use `revalidatePath` or `revalidateTag` from `next/cache` within the action handler as needed.

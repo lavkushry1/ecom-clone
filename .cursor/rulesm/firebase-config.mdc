@@ -1,0 +1,351 @@
+---
+description: Firebase configuration and setup for Next.js e-commerce
+globs: "**/firebase/**"
+alwaysApply: false
+---
+
+# Firebase Configuration
+
+## 1. Firebase Project Setup
+
+### Environment Variables
+```env
+# Firebase Client Config
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-auth-domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+
+# Firebase Admin Config
+FIREBASE_ADMIN_PRIVATE_KEY=your-private-key
+FIREBASE_ADMIN_CLIENT_EMAIL=your-client-email
+FIREBASE_ADMIN_PROJECT_ID=your-project-id
+```
+
+## 2. Firebase Client Configuration
+
+```typescript
+// lib/firebase/config.ts
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const storage = getStorage(app);
+export default app;
+```
+
+## 3. Firebase Admin Configuration
+
+```typescript
+// lib/firebase/admin.ts
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
+
+const firebaseAdminConfig = {
+  credential: cert({
+    projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  }),
+};
+
+const adminApp = !getApps().length 
+  ? initializeApp(firebaseAdminConfig, 'admin')
+  : getApps().find(app => app.name === 'admin');
+
+export const adminDb = getFirestore(adminApp);
+export const adminAuth = getAuth(adminApp);
+```
+
+## 4. Firebase Security Rules
+
+### Firestore Rules
+```javascript
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Products (public read, admin write)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Categories (public read, admin write)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Orders (user can read own orders, admin can read all)
+    match /orders/{orderId} {
+      allow read: if resource.data.userId == request.auth.uid || isAdmin();
+      allow create: if request.auth != null;
+      allow update: if isAdmin();
+    }
+    
+    // Cart (user can manage own cart)
+    match /cart/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Admin functions
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+  }
+}
+```
+
+### Storage Rules
+```javascript
+// storage.rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Product images (public read, admin write)
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // User uploads (authenticated users only)
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+## 5. Firestore Collections Structure
+
+```typescript
+// types/firebase.ts
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  images: string[];
+  category: string;
+  stock: number;
+  featured: boolean;
+  tags: string[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  parentId?: string;
+  createdAt: Timestamp;
+}
+
+export interface Order {
+  id: string;
+  userId?: string;
+  items: OrderItem[];
+  totalAmount: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  shippingAddress: Address;
+  paymentMethod: 'upi' | 'card';
+  paymentStatus: 'pending' | 'completed' | 'failed';
+  trackingNumber?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Cart {
+  userId?: string;
+  sessionId?: string;
+  items: CartItem[];
+  updatedAt: Timestamp;
+}
+```
+
+## 6. Firebase Service Patterns
+
+### Product Service
+```typescript
+// lib/firebase/services/productService.ts
+import { collection, doc, getDocs, getDoc, query, where, orderBy, limit } from 'firebase/firestore';
+import { db } from '../config';
+import { Product } from '@/types/firebase';
+
+export class ProductService {
+  private collection = collection(db, 'products');
+
+  async getProducts(categoryId?: string, limitCount = 20): Promise<Product[]> {
+    try {
+      let q = query(this.collection, orderBy('createdAt', 'desc'), limit(limitCount));
+      
+      if (categoryId) {
+        q = query(q, where('category', '==', categoryId));
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Product[];
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw new Error('Failed to fetch products');
+    }
+  }
+
+  async getProduct(id: string): Promise<Product | null> {
+    try {
+      const docRef = doc(this.collection, id);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return {
+          id: docSnap.id,
+          ...docSnap.data()
+        } as Product;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      throw new Error('Failed to fetch product');
+    }
+  }
+}
+
+export const productService = new ProductService();
+```
+
+## 7. Firebase Cloud Functions
+
+### Setup
+```bash
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Initialize functions
+firebase init functions
+
+# Install dependencies
+cd functions
+npm install
+```
+
+### Function Structure
+```typescript
+// functions/src/index.ts
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
+
+admin.initializeApp();
+
+// Order processing function
+export const processOrder = functions.firestore
+  .document('orders/{orderId}')
+  .onCreate(async (snap, context) => {
+    const order = snap.data();
+    
+    // Send confirmation email
+    // Update inventory
+    // Process payment
+    
+    console.log('Order processed:', context.params.orderId);
+  });
+
+// Generate UPI QR code
+export const generateUPIQR = functions.https.onCall(async (data, context) => {
+  const { amount, upiId } = data;
+  
+  // Generate QR code URL
+  const qrUrl = `upi://pay?pa=${upiId}&am=${amount}&cu=INR`;
+  
+  return { qrUrl };
+});
+```
+
+## 8. Error Handling
+
+```typescript
+// lib/firebase/errors.ts
+export class FirebaseError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'FirebaseError';
+  }
+}
+
+export function handleFirebaseError(error: any): string {
+  console.error('Firebase Error:', error);
+  
+  switch (error.code) {
+    case 'permission-denied':
+      return 'You do not have permission to perform this action';
+    case 'not-found':
+      return 'The requested item was not found';
+    case 'unavailable':
+      return 'Service is temporarily unavailable';
+    default:
+      return 'An unexpected error occurred';
+  }
+}
+```
+
+## 9. Performance Optimization
+
+### Pagination
+```typescript
+// lib/firebase/pagination.ts
+import { query, orderBy, startAfter, limit, DocumentSnapshot } from 'firebase/firestore';
+
+export function createPaginatedQuery(
+  baseQuery: any,
+  pageSize: number,
+  lastDoc?: DocumentSnapshot
+) {
+  let q = query(baseQuery, orderBy('createdAt', 'desc'), limit(pageSize));
+  
+  if (lastDoc) {
+    q = query(q, startAfter(lastDoc));
+  }
+  
+  return q;
+}
+```
+
+### Caching
+```typescript
+// lib/firebase/cache.ts
+import { enableNetwork, disableNetwork } from 'firebase/firestore';
+
+export async function enableOfflineSupport() {
+  try {
+    await enableNetwork(db);
+  } catch (error) {
+    console.error('Error enabling offline support:', error);
+  }
+}
+```

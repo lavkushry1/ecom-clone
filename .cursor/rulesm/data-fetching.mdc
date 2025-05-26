@@ -1,0 +1,100 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Data Fetching
+
+There are a few ways we fetch data in the app:
+1. SWR (for fetching from Next.js API routes or custom backend endpoints)
+2. Firebase SDKs (for direct interaction with Firestore, Realtime Database, etc.)
+3. Server Components (for initial data load on the server)
+
+Default to SWR when fetching from API routes that might abstract data sources. Use Firebase SDKs directly for real-time updates or when interacting with Firebase services from client components or server-side logic (Server Actions, API Routes).
+
+Here's how we use SWR:
+
+- For API GET requests to server, use the `swr` package
+- If we're in a server file, you can fetch the data inline
+- For mutating data, use Next.js server actions
+
+## SWR Example (Fetching from a Next.js API Route)
+```typescript
+const searchParams = useSearchParams();
+const page = searchParams.get("page") || "1";
+const { data, isLoading, error } = useSWR<PlanHistoryResponse>(
+  `/api/user/planned/history?page=${page}`
+);
+```
+
+## Firebase SDK Example (Fetching from Firestore in a client component)
+```typescript
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebaseClient'; // Assuming firebaseClient.ts setup
+import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
+
+function MyComponent({ userId }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const itemsCollection = collection(db, 'items');
+    const q = query(itemsCollection, where('userId', '==', userId));
+
+    // For one-time fetch:
+    // const fetchItems = async () => {
+    //   try {
+    //     const querySnapshot = await getDocs(q);
+    //     setItems(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    //   } catch (error) {
+    //     console.error("Error fetching items:", error);
+    //   } finally {
+    //     setLoading(false);
+    //   }
+    // };
+    // fetchItems();
+
+    // For real-time updates:
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      setItems(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (error) => {
+      console.error("Error listening to items:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  if (loading) return <p>Loading...</p>;
+
+  return (
+    <ul>
+      {items.map(item => <li key={item.id}>{item.name}</li>)}
+    </ul>
+  );
+}
+```
+
+## Error Handling (SWR example)
+
+Use `result?.serverError` with `toastError` and `toastSuccess`. Success toast is optional:
+
+```typescript
+import { toastError, toastSuccess } from "@/components/Toast";
+
+const onSubmit: SubmitHandler<TestRulesInputs> = useCallback(async (data) => {
+  const result = await testAiCustomContentAction({ content: data.message });
+  if (result?.serverError) {
+    toastError({
+      title: "Error testing email",
+      description: result?.serverError || "",
+    });
+  } else {
+    toastSuccess({ description: "Saved!" });
+  }
+}, []);
+```
+For Firebase SDK errors, use try/catch blocks or the error callback in `onSnapshot`. 

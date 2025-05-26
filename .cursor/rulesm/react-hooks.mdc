@@ -1,0 +1,585 @@
+---
+description: Custom React hooks for Next.js + Firebase e-commerce
+globs: "**/hooks/**"
+alwaysApply: false
+---
+
+# Custom React Hooks for E-commerce
+
+## 1. Cart Management Hook
+
+```typescript
+// hooks/useCart.ts
+'use client'
+
+import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
+import { doc, setDoc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { CartItem } from '@/types/firebase';
+
+interface CartContextType {
+  items: CartItem[];
+  itemCount: number;
+  totalAmount: number;
+  addToCart: (productId: string, quantity?: number) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number) => Promise<void>;
+  removeFromCart: (productId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
+  loading: boolean;
+}
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sessionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sessionId') || generateSessionId();
+    }
+    return generateSessionId();
+  });
+
+  // Initialize cart from Firestore or localStorage
+  useEffect(() => {
+    const initializeCart = async () => {
+      try {
+        // Try to load from Firestore first
+        const cartRef = doc(db, 'cart', sessionId);
+        const cartSnap = await getDoc(cartRef);
+        
+        if (cartSnap.exists()) {
+          setItems(cartSnap.data().items || []);
+        } else {
+          // Fallback to localStorage
+          const localCart = localStorage.getItem('cart');
+          if (localCart) {
+            const parsedCart = JSON.parse(localCart);
+            setItems(parsedCart);
+            // Sync to Firestore
+            await setDoc(cartRef, { 
+              items: parsedCart, 
+              sessionId,
+              updatedAt: new Date() 
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing cart:', error);
+        // Fallback to localStorage only
+        const localCart = localStorage.getItem('cart');
+        if (localCart) {
+          setItems(JSON.parse(localCart));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeCart();
+  }, [sessionId]);
+
+  // Sync cart to both Firestore and localStorage
+  const syncCart = async (newItems: CartItem[]) => {
+    try {
+      // Update Firestore
+      const cartRef = doc(db, 'cart', sessionId);
+      await setDoc(cartRef, {
+        items: newItems,
+        sessionId,
+        updatedAt: new Date()
+      });
+      
+      // Update localStorage
+      localStorage.setItem('cart', JSON.stringify(newItems));
+      setItems(newItems);
+    } catch (error) {
+      console.error('Error syncing cart:', error);
+      // Fallback to localStorage only
+      localStorage.setItem('cart', JSON.stringify(newItems));
+      setItems(newItems);
+    }
+  };
+
+  const addToCart = async (productId: string, quantity = 1) => {
+    const existingItemIndex = items.findIndex(item => item.productId === productId);
+    let newItems: CartItem[];
+
+    if (existingItemIndex >= 0) {
+      newItems = [...items];
+      newItems[existingItemIndex].quantity += quantity;
+    } else {
+      // Fetch product details
+      const productRef = doc(db, 'products', productId);
+      const productSnap = await getDoc(productRef);
+      
+      if (!productSnap.exists()) {
+        throw new Error('Product not found');
+      }
+      
+      const product = productSnap.data();
+      const newItem: CartItem = {
+        productId,
+        name: product.name,
+        price: product.price,
+        image: product.images[0],
+        quantity,
+      };
+      
+      newItems = [...items, newItem];
+    }
+
+    await syncCart(newItems);
+  };
+
+  const updateQuantity = async (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      await removeFromCart(productId);
+      return;
+    }
+
+    const newItems = items.map(item =>
+      item.productId === productId ? { ...item, quantity } : item
+    );
+
+    await syncCart(newItems);
+  };
+
+  const removeFromCart = async (productId: string) => {
+    const newItems = items.filter(item => item.productId !== productId);
+    await syncCart(newItems);
+  };
+
+  const clearCart = async () => {
+    await syncCart([]);
+  };
+
+  const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const totalAmount = items.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+  return (
+    <CartContext.Provider value={{
+      items,
+      itemCount,
+      totalAmount,
+      addToCart,
+      updateQuantity,
+      removeFromCart,
+      clearCart,
+      loading
+    }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+export function useCart() {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+}
+
+function generateSessionId(): string {
+  const id = Math.random().toString(36).substr(2, 9);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('sessionId', id);
+  }
+  return id;
+}
+```
+
+## 2. Products Hook
+
+```typescript
+// hooks/useProducts.ts
+'use client'
+
+import { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, limit, getDocs, startAfter, DocumentSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { Product } from '@/types/firebase';
+
+interface UseProductsOptions {
+  categoryId?: string;
+  featured?: boolean;
+  limit?: number;
+  orderByField?: string;
+  orderByDirection?: 'asc' | 'desc';
+}
+
+export function useProducts(options: UseProductsOptions = {}) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+
+  const {
+    categoryId,
+    featured,
+    limit: limitCount = 20,
+    orderByField = 'createdAt',
+    orderByDirection = 'desc'
+  } = options;
+
+  const loadProducts = async (isLoadMore = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let q = query(
+        collection(db, 'products'),
+        orderBy(orderByField, orderByDirection),
+        limit(limitCount)
+      );
+
+      // Add filters
+      if (categoryId) {
+        q = query(q, where('category', '==', categoryId));
+      }
+      
+      if (featured !== undefined) {
+        q = query(q, where('featured', '==', featured));
+      }
+
+      // Pagination
+      if (isLoadMore && lastDoc) {
+        q = query(q, startAfter(lastDoc));
+      }
+
+      const snapshot = await getDocs(q);
+      const newProducts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Product[];
+
+      if (isLoadMore) {
+        setProducts(prev => [...prev, ...newProducts]);
+      } else {
+        setProducts(newProducts);
+      }
+
+      // Update pagination state
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMore(snapshot.docs.length === limitCount);
+
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setError('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, [categoryId, featured, limitCount, orderByField, orderByDirection]);
+
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      loadProducts(true);
+    }
+  };
+
+  const refresh = () => {
+    setLastDoc(null);
+    setHasMore(true);
+    loadProducts();
+  };
+
+  return {
+    products,
+    loading,
+    error,
+    hasMore,
+    loadMore,
+    refresh
+  };
+}
+```
+
+## 3. Firebase Data Hook
+
+```typescript
+// hooks/useFirestore.ts
+'use client'
+
+import { useState, useEffect } from 'react';
+import { 
+  doc, 
+  collection, 
+  onSnapshot, 
+  DocumentSnapshot, 
+  QuerySnapshot,
+  FirestoreError 
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+
+// Hook for real-time document
+export function useDocument<T>(collectionName: string, docId: string) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!docId) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
+
+    const docRef = doc(db, collectionName, docId);
+    
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot: DocumentSnapshot) => {
+        if (snapshot.exists()) {
+          setData({ id: snapshot.id, ...snapshot.data() } as T);
+        } else {
+          setData(null);
+        }
+        setLoading(false);
+        setError(null);
+      },
+      (err: FirestoreError) => {
+        console.error(`Error listening to ${collectionName}/${docId}:`, err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [collectionName, docId]);
+
+  return { data, loading, error };
+}
+
+// Hook for real-time collection
+export function useCollection<T>(collectionName: string, queryConstraints?: any[]) {
+  const [data, setData] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const collectionRef = collection(db, collectionName);
+    
+    const unsubscribe = onSnapshot(
+      collectionRef,
+      (snapshot: QuerySnapshot) => {
+        const documents = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as T[];
+        
+        setData(documents);
+        setLoading(false);
+        setError(null);
+      },
+      (err: FirestoreError) => {
+        console.error(`Error listening to ${collectionName}:`, err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [collectionName]);
+
+  return { data, loading, error };
+}
+```
+
+## 4. Order Management Hook
+
+```typescript
+// hooks/useOrders.ts
+'use client'
+
+import { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { Order } from '@/types/firebase';
+
+export function useOrders(userId?: string) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
+    const ordersRef = collection(db, 'orders');
+    const q = query(
+      ordersRef,
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const orderData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Order[];
+        
+        setOrders(orderData);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('Error listening to orders:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  return { orders, loading, error };
+}
+```
+
+## 5. Local Storage Hook
+
+```typescript
+// hooks/useLocalStorage.ts
+'use client'
+
+import { useState, useEffect } from 'react';
+
+export function useLocalStorage<T>(key: string, initialValue: T) {
+  const [storedValue, setStoredValue] = useState<T>(initialValue);
+
+  useEffect(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      if (item) {
+        setStoredValue(JSON.parse(item));
+      }
+    } catch (error) {
+      console.error(`Error reading localStorage key "${key}":`, error);
+    }
+  }, [key]);
+
+  const setValue = (value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.error(`Error setting localStorage key "${key}":`, error);
+    }
+  };
+
+  return [storedValue, setValue] as const;
+}
+```
+
+## 6. Wishlist Hook
+
+```typescript
+// hooks/useWishlist.ts
+'use client'
+
+import { useState, useEffect } from 'react';
+import { useLocalStorage } from './useLocalStorage';
+
+export function useWishlist() {
+  const [wishlist, setWishlist] = useLocalStorage<string[]>('wishlist', []);
+
+  const addToWishlist = (productId: string) => {
+    setWishlist(prev => [...prev, productId]);
+  };
+
+  const removeFromWishlist = (productId: string) => {
+    setWishlist(prev => prev.filter(id => id !== productId));
+  };
+
+  const toggleWishlist = (productId: string) => {
+    if (isInWishlist(productId)) {
+      removeFromWishlist(productId);
+    } else {
+      addToWishlist(productId);
+    }
+  };
+
+  const isInWishlist = (productId: string) => {
+    return wishlist.includes(productId);
+  };
+
+  return {
+    wishlist,
+    addToWishlist,
+    removeFromWishlist,
+    toggleWishlist,
+    isInWishlist
+  };
+}
+```
+
+## 7. Form Validation Hook
+
+```typescript
+// hooks/useFormValidation.ts
+'use client'
+
+import { useState } from 'react';
+import { z } from 'zod';
+
+export function useFormValidation<T extends Record<string, any>>(schema: z.ZodSchema<T>) {
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validate = (data: T): boolean => {
+    try {
+      schema.parse(data);
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const formattedErrors: Partial<Record<keyof T, string>> = {};
+        error.errors.forEach((err) => {
+          const field = err.path[0] as keyof T;
+          formattedErrors[field] = err.message;
+        });
+        setErrors(formattedErrors);
+      }
+      return false;
+    }
+  };
+
+  const handleSubmit = async (
+    data: T,
+    onSubmit: (data: T) => Promise<void>
+  ) => {
+    if (!validate(data)) return;
+
+    setIsSubmitting(true);
+    try {
+      await onSubmit(data);
+    } catch (error) {
+      console.error('Form submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const clearErrors = () => setErrors({});
+
+  return {
+    errors,
+    isSubmitting,
+    validate,
+    handleSubmit,
+    clearErrors
+  };
+}
+```

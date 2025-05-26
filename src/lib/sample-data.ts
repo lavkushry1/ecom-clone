@@ -1,0 +1,296 @@
+// Sample Product Data for E-commerce Store
+export const sampleProducts = [
+  {
+    name: "iPhone 15 Pro Max",
+    description: "The most advanced iPhone yet with titanium design, A17 Pro chip, and revolutionary camera system.",
+    price: 159900,
+    salePrice: 149900,
+    images: [
+      "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400",
+      "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop",
+    ],
+    category: "Electronics",
+    subcategory: "Smartphones",
+    brand: "Apple",
+    stock: 50,
+    rating: 4.8,
+    reviews: 2456,
+    tags: ["smartphone", "iphone", "apple", "5g", "premium"],
+    specifications: {
+      "Display": "6.7-inch Super Retina XDR",
+      "Processor": "A17 Pro chip",
+      "Storage": "256GB",
+      "Camera": "48MP Main + 12MP Ultra Wide + 12MP Telephoto",
+      "Battery": "Up to 29 hours video playback",
+      "OS": "iOS 17"
+    },
+    isActive: true,
+  },
+  {
+    name: "Samsung Galaxy S24 Ultra",
+    description: "Ultimate smartphone with S Pen, AI-powered features, and 200MP camera for professional photography.",
+    price: 134999,
+    salePrice: 124999,
+    images: [
+      "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400",
+      "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&h=400&fit=crop",
+    ],
+    category: "Electronics",
+    subcategory: "Smartphones",
+    brand: "Samsung",
+    stock: 30,
+    rating: 4.7,
+    reviews: 1890,
+    tags: ["smartphone", "samsung", "galaxy", "s-pen", "android"],
+    specifications: {
+      "Display": "6.8-inch Dynamic AMOLED 2X",
+      "Processor": "Snapdragon 8 Gen 3",
+      "Storage": "256GB",
+      "Camera": "200MP Main + 50MP Periscope + 12MP Ultra Wide + 10MP Telephoto",
+      "Battery": "5000mAh",
+      "OS": "Android 14 with One UI 6.1"
+    },
+    isActive: true,
+  },
+  {
+    name: "MacBook Air M3",
+    description: "Supercharged by the M3 chip, incredibly portable design with all-day battery life.",
+    price: 114900,
+    salePrice: 109900,
+    images: [
+      "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
+      "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400&h=400&fit=crop",
+    ],
+    category: "Electronics",
+    subcategory: "Laptops",
+    brand: "Apple",
+    stock: 25,
+    rating: 4.9,
+    reviews: 1234,
+    tags: ["laptop", "macbook", "apple", "m3", "ultrabook"],
+    specifications: {
+      "Display": "13.6-inch Liquid Retina",
+      "Processor": "Apple M3 chip",
+      "Memory": "8GB unified memory",
+      "Storage": "256GB SSD",
+      "Battery": "Up to 18 hours",
+      "Weight": "1.24 kg"
+    },
+    isActive: true,
+  },
+  {
+    name: "Dell XPS 13 Plus",
+    description: "Premium ultrabook with InfinityEdge display and cutting-edge performance for professionals.",
+    price: 129999,
+    salePrice: 119999,
+    images: [
+      "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400",
+      "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&h=400&fit=crop",
+    ],
+    category: "Electronics",
+    subcategory: "Laptops",
+    brand: "Dell",
+    stock: 20,
+    rating: 4.6,
+    reviews: 856,
+    tags: ["laptop", "dell", "xps", "ultrabook", "business"],
+    specifications: {
+      "Display": "13.4-inch FHD+ InfinityEdge",
+      "Processor": "Intel Core i7-1360P",
+      "Memory": "16GB LPDDR5",
+      "Storage": "512GB SSD",
+      "Graphics": "Intel Iris Xe",
+      "Weight": "1.26 kg"
+    },
+    isActive: true,
+  },
+  {
+    name: "Sony WH-1000XM5",
+    description: "Industry-leading noise canceling headphones with exceptional sound quality and comfort.",
+    price: 29990,
+    salePrice: 24990,
+    images: [
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
+    ],
+    category: "Electronics",
+    subcategory: "Headphones",
+    brand: "Sony",
+    stock: 75,
+    rating: 4.8,
+    reviews: 3421,
+    tags: ["headphones", "sony", "wireless", "noise-canceling", "premium"],
+    specifications: {
+      "Driver": "30mm",
+      "Frequency Response": "4Hz-40,000Hz",
+      "Battery Life": "Up to 30 hours",
+      "Charging": "USB-C, Quick charge",
+      "Connectivity": "Bluetooth 5.2",
+      "Weight": "250g"
+    },
+    isActive: true,
+  },
+  {
+    name: "Nike Air Force 1 '07",
+    description: "Classic basketball shoe reimagined with premium materials and timeless style.",
+    price: 7495,
+    salePrice: 6495,
+    images: [
+      "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400",
+      "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&h=400&fit=crop",
+    ],
+    category: "Fashion",
+    subcategory: "Shoes",
+    brand: "Nike",
+    stock: 100,
+    rating: 4.5,
+    reviews: 5678,
+    tags: ["shoes", "nike", "sneakers", "casual", "sports"],
+    specifications: {
+      "Material": "Leather upper",
+      "Sole": "Rubber outsole",
+      "Closure": "Lace-up",
+      "Style": "Low-top",
+      "Care": "Wipe with damp cloth",
+      "Origin": "Vietnam"
+    },
+    isActive: true,
+  },
+  {
+    name: "Levi's 501 Original Jeans",
+    description: "The original blue jean since 1873. Straight fit with classic styling and premium denim.",
+    price: 4999,
+    salePrice: 3999,
+    images: [
+      "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400",
+      "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
+    ],
+    category: "Fashion",
+    subcategory: "Clothing",
+    brand: "Levi's",
+    stock: 150,
+    rating: 4.4,
+    reviews: 2341,
+    tags: ["jeans", "levis", "denim", "casual", "classic"],
+    specifications: {
+      "Fit": "Straight",
+      "Rise": "Mid-rise",
+      "Material": "100% Cotton",
+      "Closure": "Button fly",
+      "Pockets": "5-pocket styling",
+      "Care": "Machine wash cold"
+    },
+    isActive: true,
+  },
+  {
+    name: "Instant Pot Duo 7-in-1",
+    description: "Multi-functional electric pressure cooker that replaces 7 kitchen appliances.",
+    price: 8999,
+    salePrice: 7499,
+    images: [
+      "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400",
+      "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop",
+    ],
+    category: "Home & Kitchen",
+    subcategory: "Kitchen Appliances",
+    brand: "Instant Pot",
+    stock: 40,
+    rating: 4.7,
+    reviews: 4567,
+    tags: ["kitchen", "appliance", "pressure-cooker", "cooking", "multi-use"],
+    specifications: {
+      "Capacity": "6 Quart",
+      "Functions": "Pressure Cook, Slow Cook, Rice Cooker, Steamer, Sauté, Yogurt Maker, Food Warmer",
+      "Material": "Stainless Steel",
+      "Power": "1000 Watts",
+      "Safety": "10+ safety features",
+      "Accessories": "Included"
+    },
+    isActive: true,
+  },
+  {
+    name: "The Midnight Library",
+    description: "Between life and death there is a library, and within that library, the shelves go on forever.",
+    price: 599,
+    salePrice: 449,
+    images: [
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
+    ],
+    category: "Books",
+    subcategory: "Fiction",
+    brand: "Penguin Random House",
+    stock: 200,
+    rating: 4.3,
+    reviews: 8901,
+    tags: ["book", "fiction", "bestseller", "philosophy", "reading"],
+    specifications: {
+      "Author": "Matt Haig",
+      "Pages": "288",
+      "Language": "English",
+      "Format": "Paperback",
+      "Publisher": "Canongate Books",
+      "ISBN": "9781786892720"
+    },
+    isActive: true,
+  },
+  {
+    name: "PlayStation 5 Console",
+    description: "Experience lightning-fast loading with an ultra-high speed SSD and deeper immersion.",
+    price: 54990,
+    salePrice: 49990,
+    images: [
+      "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400",
+      "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400&h=400&fit=crop",
+    ],
+    category: "Electronics",
+    subcategory: "Gaming",
+    brand: "Sony",
+    stock: 15,
+    rating: 4.9,
+    reviews: 1567,
+    tags: ["gaming", "console", "sony", "playstation", "entertainment"],
+    specifications: {
+      "Processor": "AMD Zen 2 8-core",
+      "Graphics": "AMD RDNA 2 GPU",
+      "Memory": "16GB GDDR6",
+      "Storage": "825GB SSD",
+      "Optical Drive": "4K UHD Blu-ray",
+      "Connectivity": "Wi-Fi 6, Bluetooth 5.1"
+    },
+    isActive: true,
+  }
+];
+
+export const sampleCategories = [
+  {
+    id: "electronics",
+    name: "Electronics",
+    description: "Latest gadgets and electronic devices",
+    subcategories: ["Smartphones", "Laptops", "Headphones", "Gaming", "Accessories"]
+  },
+  {
+    id: "fashion",
+    name: "Fashion",
+    description: "Trending fashion and lifestyle products",
+    subcategories: ["Clothing", "Shoes", "Accessories", "Watches", "Bags"]
+  },
+  {
+    id: "home-kitchen",
+    name: "Home & Kitchen",
+    description: "Everything for your home and kitchen needs",
+    subcategories: ["Kitchen Appliances", "Home Decor", "Furniture", "Storage", "Cleaning"]
+  },
+  {
+    id: "books",
+    name: "Books",
+    description: "Books across all genres and categories",
+    subcategories: ["Fiction", "Non-Fiction", "Educational", "Children", "Comics"]
+  },
+  {
+    id: "sports",
+    name: "Sports & Fitness",
+    description: "Sports equipment and fitness gear",
+    subcategories: ["Fitness Equipment", "Sports Gear", "Outdoor", "Footwear", "Apparel"]
+  }
+];

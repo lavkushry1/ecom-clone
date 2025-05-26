@@ -1,0 +1,264 @@
+---
+description: Next.js 14+ with Firebase development guidelines
+globs: "**/*.{js,jsx,ts,tsx,json}"
+alwaysApply: true
+---
+
+# Next.js 14 + Firebase Development Rules
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (main)/            # Main e-commerce pages
+│   │   ├── products/      # Product catalog
+│   │   ├── cart/          # Shopping cart
+│   │   ├── checkout/      # Checkout flow
+│   │   └── orders/        # Order management
+│   ├── admin/             # Admin panel
+│   ├── api/               # API routes
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Home page
+├── components/            # Reusable UI components
+│   ├── ui/               # Basic UI components
+│   ├── forms/            # Form components
+│   ├── layout/           # Layout components
+│   └── features/         # Feature-specific components
+├── lib/                  # Utility libraries
+│   ├── firebase/         # Firebase configuration
+│   ├── utils/            # General utilities
+│   ├── validations/      # Zod schemas
+│   └── constants/        # App constants
+├── hooks/                # Custom React hooks
+├── types/                # TypeScript type definitions
+└── styles/               # Additional styles
+```
+
+## Firebase Integration
+
+### 1. Firebase Configuration
+- Use Firebase Admin SDK for server-side operations
+- Use Firebase Client SDK for client-side operations
+- Store Firebase config in environment variables
+- Initialize Firebase once in `lib/firebase/config.ts`
+
+### 2. Firestore Data Structure
+```typescript
+// Collections structure
+collections = {
+  products: 'products',
+  categories: 'categories', 
+  orders: 'orders',
+  users: 'users',
+  cart: 'cart',
+  reviews: 'reviews',
+  admin: 'admin'
+}
+```
+
+### 3. Firebase Services
+- Create service files in `lib/firebase/services/`
+- Use TypeScript interfaces for all Firebase operations
+- Implement proper error handling with try-catch blocks
+- Use Firebase timestamps for all date fields
+
+## Next.js Best Practices
+
+### 1. App Router Usage
+- Use Server Components by default
+- Add 'use client' only when necessary
+- Prefer Server Actions for form submissions
+- Use loading.tsx and error.tsx for better UX
+
+### 2. Data Fetching
+```typescript
+// Server Component (default)
+async function ProductPage({ params }: { params: { id: string } }) {
+  const product = await getProduct(params.id);
+  return <ProductDetails product={product} />;
+}
+
+// Client Component (when needed)
+'use client'
+function ProductForm() {
+  const [loading, setLoading] = useState(false);
+  // Client-side logic
+}
+```
+
+### 3. API Routes
+- Use route handlers in `app/api/`
+- Implement proper HTTP methods (GET, POST, PUT, DELETE)
+- Add authentication middleware where needed
+- Return proper HTTP status codes
+
+## Component Guidelines
+
+### 1. Component Structure
+```typescript
+// components/features/ProductCard.tsx
+interface ProductCardProps {
+  product: Product;
+  onAddToCart?: (productId: string) => void;
+}
+
+export function ProductCard({ product, onAddToCart }: ProductCardProps) {
+  return (
+    <div className="product-card">
+      {/* Component content */}
+    </div>
+  );
+}
+```
+
+### 2. State Management
+- Use React's built-in state for local state
+- Use Context API for global state when needed
+- Consider Zustand for complex state management
+- Persist cart state in localStorage
+
+### 3. Form Handling
+- Use Server Actions for form submissions
+- Validate with Zod schemas
+- Provide proper loading and error states
+- Implement progressive enhancement
+
+## Styling Guidelines
+
+### 1. Tailwind CSS
+- Use Tailwind CSS for styling
+- Create custom components in `components/ui/`
+- Use CSS variables for theme colors
+- Implement responsive design mobile-first
+
+### 2. Component Variants
+```typescript
+import { cva } from "class-variance-authority";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground",
+        outline: "border border-input bg-background",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+      },
+    },
+  }
+);
+```
+
+## Error Handling
+
+### 1. Server-Side Errors
+```typescript
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  try {
+    const data = await fetchData();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### 2. Client-Side Errors
+- Use error boundaries for component errors
+- Show user-friendly error messages
+- Log errors for debugging
+- Provide fallback UI components
+
+## Performance Optimization
+
+### 1. Images
+- Use Next.js Image component
+- Implement proper alt text
+- Use appropriate image formats (WebP, AVIF)
+- Lazy load images below the fold
+
+### 2. Code Splitting
+- Use dynamic imports for large components
+- Implement route-based code splitting
+- Lazy load admin components
+
+### 3. Caching
+- Use Next.js caching strategies
+- Cache Firebase queries when appropriate
+- Implement proper revalidation
+
+## Security Best Practices
+
+### 1. Authentication
+- Use Firebase Authentication
+- Implement proper session management
+- Validate user permissions on server-side
+- Use middleware for protected routes
+
+### 2. Data Validation
+- Validate all inputs with Zod
+- Sanitize user data before storing
+- Use Firebase Security Rules
+- Implement rate limiting
+
+## Testing Guidelines
+
+### 1. Unit Tests
+- Test utility functions
+- Test custom hooks
+- Use Jest and React Testing Library
+- Mock Firebase services in tests
+
+### 2. Integration Tests
+- Test API routes
+- Test form submissions
+- Test user flows
+- Use Cypress for E2E testing
+
+## Development Workflow
+
+### 1. Environment Setup
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Start Firebase emulators
+npm run firebase:emulators
+
+# Run tests
+npm run test
+```
+
+### 2. Code Quality
+- Use TypeScript strictly
+- Follow ESLint rules
+- Format with Prettier
+- Use Husky for git hooks
+
+## Deployment
+
+### 1. Firebase Hosting
+- Deploy to Firebase Hosting
+- Use Firebase Functions for API routes
+- Set up proper environment variables
+- Configure custom domain
+
+### 2. Performance Monitoring
+- Use Firebase Performance Monitoring
+- Monitor Core Web Vitals
+- Track user interactions
+- Set up error reporting
