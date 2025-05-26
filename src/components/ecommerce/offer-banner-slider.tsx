@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OfferBannerSkeleton } from '@/components/ui/skeleton';
 
 interface OfferBanner {
   id: string;
@@ -66,6 +67,13 @@ export function OfferBannerSlider({
 }: OfferBannerSliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const nextSlide = () => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % offers.length);
@@ -88,6 +96,10 @@ export function OfferBannerSlider({
     const interval = setInterval(nextSlide, autoScrollInterval);
     return () => clearInterval(interval);
   }, [autoScroll, autoScrollInterval, isUserInteracting]);
+
+  if (loading) {
+    return <OfferBannerSkeleton />;
+  }
 
   return (
     <div className="relative w-full h-48 md:h-64 overflow-hidden rounded-2xl shadow-lg">

@@ -3,262 +3,261 @@ description: Next.js 14+ with Firebase development guidelines
 globs: "**/*.{js,jsx,ts,tsx,json}"
 alwaysApply: true
 ---
-
 # Next.js 14 + Firebase Development Rules
 
-## Project Structure
+This document outlines key guidelines and patterns for developing e-commerce applications using Next.js (with the App Router) and Firebase.
+
+## Project Structure (Illustrative)
 
 ```
 src/
 ├── app/                    # Next.js App Router
-│   ├── (main)/            # Main e-commerce pages
-│   │   ├── products/      # Product catalog
-│   │   ├── cart/          # Shopping cart
-│   │   ├── checkout/      # Checkout flow
-│   │   └── orders/        # Order management
-│   ├── admin/             # Admin panel
-│   ├── api/               # API routes
-│   ├── globals.css        # Global styles
+│   ├── (main)/            # Main e-commerce pages (e.g., products, cart, checkout)
+│   ├── admin/             # Admin panel routes
+│   ├── api/               # API routes (for Server Actions or specific backend logic)
 │   ├── layout.tsx         # Root layout
 │   └── page.tsx           # Home page
 ├── components/            # Reusable UI components
-│   ├── ui/               # Basic UI components
-│   ├── forms/            # Form components
-│   ├── layout/           # Layout components
-│   └── features/         # Feature-specific components
-├── lib/                  # Utility libraries
-│   ├── firebase/         # Firebase configuration
-│   ├── utils/            # General utilities
-│   ├── validations/      # Zod schemas
-│   └── constants/        # App constants
-├── hooks/                # Custom React hooks
-├── types/                # TypeScript type definitions
-└── styles/               # Additional styles
+│   ├── ui/                # Basic UI elements (e.g., from Shadcn/UI)
+│   ├── forms/             # Form-specific components
+│   ├── layout/            # Layout components (Header, Footer, Sidebar)
+│   └── features/          # Components specific to features (e.g., ProductCard, CartView)
+├── lib/
+│   ├── firebase/          # Firebase configuration and core services
+│   │   ├── config.ts      # Firebase client SDK initialization
+│   │   ├── admin.ts       # Firebase admin SDK initialization (for server-side use)
+│   │   └── services/      # Service classes for Firestore interactions (e.g., productService.ts)
+│   ├── actions/           # Next.js Server Actions (using Firebase Admin SDK for DB operations)
+│   ├── utils/             # General utility functions
+│   ├── validations/       # Zod schemas for data validation
+│   └── constants/         # Application-wide constants
+├── hooks/                 # Custom React hooks (e.g., useCart, useAuth)
+├── types/                 # TypeScript type definitions (e.g., Product, Order, User)
+└── styles/                # Global styles, Tailwind config
 ```
 
 ## Firebase Integration
 
-### 1. Firebase Configuration
-- Use Firebase Admin SDK for server-side operations
-- Use Firebase Client SDK for client-side operations
-- Store Firebase config in environment variables
-- Initialize Firebase once in `lib/firebase/config.ts`
+### 1. Configuration & Initialization
 
-### 2. Firestore Data Structure
-```typescript
-// Collections structure
-collections = {
-  products: 'products',
-  categories: 'categories', 
-  orders: 'orders',
-  users: 'users',
-  cart: 'cart',
-  reviews: 'reviews',
-  admin: 'admin'
-}
-```
+-   **Client SDK (`lib/firebase/config.ts`):** Initialize Firebase for client-side usage (Firestore, Auth, Storage client SDKs). Store Firebase config keys in environment variables prefixed with `NEXT_PUBLIC_`.
+    ```typescript
+    // lib/firebase/config.ts (Simplified Example)
+    import { initializeApp, getApps, getApp } from 'firebase/app';
+    import { getFirestore } from 'firebase/firestore';
+    import { getAuth } from 'firebase/auth';
+    // ... other services like getStorage
 
-### 3. Firebase Services
-- Create service files in `lib/firebase/services/`
-- Use TypeScript interfaces for all Firebase operations
-- Implement proper error handling with try-catch blocks
-- Use Firebase timestamps for all date fields
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      // ... other config values
+    };
 
-## Next.js Best Practices
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    // export const storage = getStorage(app);
 
-### 1. App Router Usage
-- Use Server Components by default
-- Add 'use client' only when necessary
-- Prefer Server Actions for form submissions
-- Use loading.tsx and error.tsx for better UX
+    export { app, db, auth };
+    ```
+-   **Admin SDK (`lib/firebase/admin.ts`):** Initialize Firebase Admin SDK for server-side operations (Server Actions, API routes, Cloud Functions). Store service account credentials securely in environment variables (not prefixed with `NEXT_PUBLIC_`).
+    ```typescript
+    // lib/firebase/admin.ts (Simplified Example)
+    import * as admin from 'firebase-admin';
 
-### 2. Data Fetching
-```typescript
-// Server Component (default)
-async function ProductPage({ params }: { params: { id: string } }) {
-  const product = await getProduct(params.id);
-  return <ProductDetails product={product} />;
-}
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        }),
+        // databaseURL: 'https://<YOUR_PROJECT_ID>.firebaseio.com' // If using RTDB
+      });
+    }
+    const adminDb = admin.firestore();
+    const adminAuth = admin.auth();
+    // export const adminStorage = admin.storage();
 
-// Client Component (when needed)
-'use client'
-function ProductForm() {
-  const [loading, setLoading] = useState(false);
-  // Client-side logic
-}
-```
+    export { adminDb, adminAuth };
+    ```
 
-### 3. API Routes
-- Use route handlers in `app/api/`
-- Implement proper HTTP methods (GET, POST, PUT, DELETE)
-- Add authentication middleware where needed
-- Return proper HTTP status codes
+### 2. Firestore Data Modeling & Services
+
+-   Define clear TypeScript interfaces for your Firestore documents (e.g., `Product`, `Order`, `User` in `src/types/firebase.ts`).
+-   Create service classes or modules in `lib/firebase/services/` to encapsulate Firestore CRUD operations (e.g., `productService.ts`, `orderService.ts`). These services should use the Firebase Admin SDK for server-side operations called from Server Actions or API routes, and can use the client SDK if direct client-side interaction is needed (though often abstracted via hooks or Server Components).
+    ```typescript
+    // Example: lib/firebase/services/productService.ts
+    import { adminDb } from '@/lib/firebase/admin';
+    import { Product } from '@/types/firebase'; // Your Product type
+    import { CollectionReference, DocumentData } from 'firebase-admin/firestore';
+
+    const productsCollection = adminDb.collection('products') as CollectionReference<Product>;
+
+    export async function getProductById(productId: string): Promise<Product | null> {
+      const docSnap = await productsCollection.doc(productId).get();
+      if (!docSnap.exists) return null;
+      return { id: docSnap.id, ...docSnap.data() } as Product;
+    }
+    // ... other product service functions (create, update, list with filters etc.)
+    ```
+
+### 3. Firebase Security Rules (`firestore.rules`)
+
+-   Implement robust security rules to protect your data. Define rules based on user authentication status and roles.
+    ```javascript
+    // firestore.rules (Example Snippet)
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        // Products: Public read, admin write
+        match /products/{productId} {
+          allow read: if true;
+          allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        }
+        // User-specific data (e.g., cart, orders)
+        match /users/{userId}/{document=**} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+        // Orders: User can create, user can read own, admin can read/write all
+        match /orders/{orderId} {
+          allow create: if request.auth != null; // Further checks on request.resource.data are needed
+          allow read: if request.auth != null && (request.resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+          allow update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        }
+        // Add other rules for categories, reviews, etc.
+      }
+    }
+    ```
+
+### 4. Firebase Storage (`storage.rules`)
+
+-   Secure file uploads (e.g., product images, user avatars) with Firebase Storage rules.
+    ```javascript
+    // storage.rules (Example Snippet)
+    rules_version = '2';
+    service firebase.storage {
+      match /b/{bucket}/o {
+        // Product images: public read, admin write
+        match /products/{productId}/{imageName} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.token.admin == true; // Example using custom claim for admin
+        }
+        // User avatars: user can write to their own path
+        match /users/{userId}/avatar.jpg {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.uid == userId;
+        }
+      }
+    }
+    ```
+
+### 5. Cloud Functions (Optional but Recommended)
+
+-   Use Firebase Cloud Functions for backend logic that doesn't fit well into Server Actions or API routes, such as:
+    -   Responding to Firestore triggers (e.g., updating aggregated data when an order is created).
+    -   Complex or long-running background tasks.
+    -   Third-party API integrations that require secure credentials.
+    -   Scheduled tasks.
+-   Cloud Functions should use the Firebase Admin SDK.
+
+## Next.js Best Practices with Firebase
+
+### 1. Server Components & Data Fetching
+
+-   Utilize Server Components for initial data loading directly from Firebase services (using Admin SDK).
+    ```typescript
+    // app/products/[id]/page.tsx (Server Component Example)
+    import { getProductById } from '@/lib/firebase/services/productService';
+    import ProductDetails from '@/components/features/ProductDetails';
+
+    async function ProductPage({ params }: { params: { id: string } }) {
+      const product = await getProductById(params.id);
+      if (!product) return <div>Product not found</div>;
+      return <ProductDetails product={product} />;
+    }
+    export default ProductPage;
+    ```
+-   For client-side data fetching or real-time updates, use hooks (e.g., `useSWR` with Next.js API routes that call Firebase services, or custom hooks directly using Firebase Client SDK for `onSnapshot`). Refer to `data-fetching.mdc`.
+
+### 2. Server Actions
+
+-   Use Server Actions for mutations (form submissions, creating/updating data).
+-   Server Actions **must** use the Firebase Admin SDK for database operations to ensure security and proper permissions.
+-   Validate inputs using Zod schemas within Server Actions.
+    ```typescript
+    // lib/actions/cartActions.ts (Server Action Example)
+    'use server';
+    import { adminDb } from '@/lib/firebase/admin';
+    import { z } from 'zod';
+    import { revalidatePath } from 'next/cache';
+    // ... other imports
+
+    const addToCartSchema = z.object({ productId: z.string(), quantity: z.number().min(1) });
+
+    export async function addToCartAction(userId: string, formData: FormData) {
+      const rawData = {
+        productId: formData.get('productId'),
+        quantity: Number(formData.get('quantity')),
+      };
+      const validation = addToCartSchema.safeParse(rawData);
+      if (!validation.success) return { error: 'Invalid input' };
+
+      const { productId, quantity } = validation.data;
+      // Logic to add to cart in Firestore using adminDb.collection('users').doc(userId).collection('cart')... 
+      // Ensure to handle product stock checks and other business logic.
+      // Example: await adminDb.doc(`users/${userId}/cart/${productId}`).set({ quantity, addedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      revalidatePath('/cart');
+      return { success: true };
+    }
+    ```
+
+### 3. API Routes (App Router)
+
+-   Use API Route Handlers (`app/api/.../route.ts`) for scenarios where Server Actions are not suitable, or for creating dedicated backend endpoints (e.g., webhook handlers, specific data processing endpoints).
+-   API Routes that interact with Firebase should use the Firebase Admin SDK.
 
 ## Component Guidelines
 
-### 1. Component Structure
-```typescript
-// components/features/ProductCard.tsx
-interface ProductCardProps {
-  product: Product;
-  onAddToCart?: (productId: string) => void;
-}
+-   **Structure:** Organize components into `ui` (basic elements), `forms`, `layout`, and `features` (domain-specific).
+-   **State Management:**
+    -   Use React's built-in state (`useState`, `useReducer`) for local component state.
+    -   Employ React Context API for global state like authentication status or theme.
+    -   For complex client-side state (e.g., cart management before syncing), custom hooks interacting with Firebase (Client SDK) or localStorage are preferred.
+-   **Forms:** Use libraries like React Hook Form with Zod for validation. Submissions should typically go through Server Actions.
 
-export function ProductCard({ product, onAddToCart }: ProductCardProps) {
-  return (
-    <div className="product-card">
-      {/* Component content */}
-    </div>
-  );
-}
-```
+## Styling
 
-### 2. State Management
-- Use React's built-in state for local state
-- Use Context API for global state when needed
-- Consider Zustand for complex state management
-- Persist cart state in localStorage
-
-### 3. Form Handling
-- Use Server Actions for form submissions
-- Validate with Zod schemas
-- Provide proper loading and error states
-- Implement progressive enhancement
-
-## Styling Guidelines
-
-### 1. Tailwind CSS
-- Use Tailwind CSS for styling
-- Create custom components in `components/ui/`
-- Use CSS variables for theme colors
-- Implement responsive design mobile-first
-
-### 2. Component Variants
-```typescript
-import { cva } from "class-variance-authority";
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground",
-        outline: "border border-input bg-background",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-      },
-    },
-  }
-);
-```
+-   Primarily use Tailwind CSS for utility-first styling.
+-   Leverage Shadcn/UI for pre-built, accessible components that can be customized.
+-   Define theme colors and global styles in `tailwind.config.js` and `src/styles/globals.css`.
 
 ## Error Handling
 
-### 1. Server-Side Errors
-```typescript
-import { NextResponse } from 'next/server';
+-   **Server-Side (Server Actions, API Routes):** Implement try-catch blocks. Return structured error responses.
+-   **Client-Side:** Use error boundaries for component-level errors. Display user-friendly messages. Log errors for debugging.
 
-export async function GET() {
-  try {
-    const data = await fetchData();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
-}
-```
+## Performance
 
-### 2. Client-Side Errors
-- Use error boundaries for component errors
-- Show user-friendly error messages
-- Log errors for debugging
-- Provide fallback UI components
+-   Use Next.js Image component (`next/image`) for optimized image delivery.
+-   Implement code-splitting with dynamic imports (`next/dynamic`) for large components or sections not immediately visible.
+-   Optimize Firestore queries: fetch only necessary data, use pagination, and leverage indexing.
+-   Consider Next.js caching strategies (Full Route Cache, Data Cache) where appropriate, and use `revalidatePath` or `revalidateTag` in Server Actions to update caches.
 
-## Performance Optimization
+## Security
 
-### 1. Images
-- Use Next.js Image component
-- Implement proper alt text
-- Use appropriate image formats (WebP, AVIF)
-- Lazy load images below the fold
+-   **Authentication:** Utilize Firebase Authentication for user sign-up, sign-in, and session management.
+-   **Authorization:** Enforce access control through Firebase Security Rules (Firestore & Storage) and by validating user roles/permissions in server-side logic (Server Actions, API Routes using Admin SDK).
+-   **Data Validation:** Validate all inputs on the client-side (for UX) and rigorously on the server-side (Server Actions, API Routes) using Zod.
+-   **Environment Variables:** Store all sensitive keys and configurations in environment variables. Never hardcode them.
 
-### 2. Code Splitting
-- Use dynamic imports for large components
-- Implement route-based code splitting
-- Lazy load admin components
+## Testing
 
-### 3. Caching
-- Use Next.js caching strategies
-- Cache Firebase queries when appropriate
-- Implement proper revalidation
+-   **Unit Tests (Vitest/Jest):** Test utility functions, custom hooks, and individual component logic. Mock Firebase SDK calls where necessary.
+-   **Integration Tests:** Test Server Actions and API Routes, possibly using Firebase Emulators.
+-   **E2E Tests (Cypress/Playwright):** Test critical user flows (e.g., product browsing, add to cart, checkout).
+-   **Firebase Emulators:** Use Firebase Emulators Suite for local development and testing of Firestore, Auth, Functions, and Storage to avoid interacting with live Firebase services during development.
 
-## Security Best Practices
-
-### 1. Authentication
-- Use Firebase Authentication
-- Implement proper session management
-- Validate user permissions on server-side
-- Use middleware for protected routes
-
-### 2. Data Validation
-- Validate all inputs with Zod
-- Sanitize user data before storing
-- Use Firebase Security Rules
-- Implement rate limiting
-
-## Testing Guidelines
-
-### 1. Unit Tests
-- Test utility functions
-- Test custom hooks
-- Use Jest and React Testing Library
-- Mock Firebase services in tests
-
-### 2. Integration Tests
-- Test API routes
-- Test form submissions
-- Test user flows
-- Use Cypress for E2E testing
-
-## Development Workflow
-
-### 1. Environment Setup
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Start Firebase emulators
-npm run firebase:emulators
-
-# Run tests
-npm run test
-```
-
-### 2. Code Quality
-- Use TypeScript strictly
-- Follow ESLint rules
-- Format with Prettier
-- Use Husky for git hooks
-
-## Deployment
-
-### 1. Firebase Hosting
-- Deploy to Firebase Hosting
-- Use Firebase Functions for API routes
-- Set up proper environment variables
-- Configure custom domain
-
-### 2. Performance Monitoring
-- Use Firebase Performance Monitoring
-- Monitor Core Web Vitals
-- Track user interactions
-- Set up error reporting
+By adhering to these guidelines, you can build a robust, scalable, and maintainable e-commerce platform with Next.js and Firebase.

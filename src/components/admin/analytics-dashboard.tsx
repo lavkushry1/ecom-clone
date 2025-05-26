@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AnalyticsDashboardSkeleton } from '@/components/ui/advanced-skeleton';
 import {
   TrendingUp,
   TrendingDown,
@@ -75,6 +76,7 @@ interface CustomerSegment {
 
 export function AnalyticsDashboard() {
   const [timeRange, setTimeRange] = useState('7d');
+  const [isLoading, setIsLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     revenue: { current: 2847650, previous: 2245890, change: 26.8, trend: 'up' },
     orders: { current: 1247, previous: 1089, change: 14.5, trend: 'up' },
@@ -195,6 +197,20 @@ export function AnalyticsDashboard() {
       </CardContent>
     </Card>
   );
+
+  // Simulate loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [timeRange]);
+
+  // Show skeleton during loading
+  if (isLoading) {
+    return <AnalyticsDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

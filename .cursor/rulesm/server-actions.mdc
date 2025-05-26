@@ -3,7 +3,6 @@ description: Server Actions for Next.js + Firebase e-commerce
 globs: "**/actions/**"
 alwaysApply: false
 ---
-
 # Server Actions for E-commerce
 
 ## 1. Product Actions
@@ -171,23 +170,18 @@ For `apps/web/utils/actions/NAME.validation.ts`:
 ```typescript
 import { z } from "zod";
 
-// Example: Schema for updating AI settings
-export const saveAiSettingsBody = z.object({
-  aiProvider: z.string().optional(), // Adjust types as needed
-  aiModel: z.string().optional(),
-  aiApiKey: z.string().optional(),
+// Example: Schema for updating User Settings
+export const saveUserSettingsBody = z.object({
+  displayName: z.string().min(3, "Display name must be at least 3 characters").optional(),
+  themePreference: z.enum(["light", "dark", "system"]).optional(),
+  // Add other user settings fields here as needed
 });
-export type SaveAiSettingsBody = z.infer<typeof saveAiSettingsBody>;
+export type SaveUserSettingsBody = z.infer<typeof saveUserSettingsBody>;
 
-// Example: Schema for updating email settings (requires emailAccountId binding)
-export const saveEmailUpdateSettingsBody = z.object({
-  statsEmailFrequency: z.string().optional(), // Use specific enum/types if applicable
-  summaryEmailFrequency: z.string().optional(),
-});
-export type SaveEmailUpdateSettingsBody = z.infer<
-  typeof saveEmailUpdateSettingsBody
->;
-
+// You can include other Zod schema examples or general validation advice below if relevant.
+// For example, if you had another schema:
+// export const someOtherActionBody = z.object({ ... });
+// export type SomeOtherActionBody = z.infer<typeof someOtherActionBody>;
 ```
 
 For `apps/web/utils/actions/NAME.ts`:
@@ -195,62 +189,91 @@ For `apps/web/utils/actions/NAME.ts`:
 ```typescript
 "use server";
 
-import { actionClient, actionClientUser } from "@/utils/actions/safe-action";
-import {
-  saveAiSettingsBody,
-  saveEmailUpdateSettingsBody,
-} from "@/utils/actions/settings.validation"; // Adjust path
-import prisma from "@/utils/prisma";
-import { revalidatePath } from "next/cache"; // Import if needed for cache invalidation
+import { actionClientUser } from "@/utils/actions/safe-action"; // Assuming your safe-action client setup
+import { saveUserSettingsBody } from "@/utils/actions/settings.validation"; // Adjust path to your validation file accordingly
+import { adminDb } from "@/lib/firebase/admin"; // Import your Firebase Admin SDK initialized instance
+import { revalidatePath } from "next/cache";
+import { FieldValue } from 'firebase-admin/firestore'; // Import FieldValue for serverTimestamp
 
 // Example using actionClientUser (requires authenticated user context)
-export const updateAiSettingsAction = actionClientUser
-  .metadata({ name: "updateAiSettings" }) // For logging/instrumentation
-  .schema(saveAiSettingsBody) // Zod schema for input validation
+// This action updates user settings in Firestore.
+export const updateUserSettingsAction = actionClientUser
+  .metadata({ name: "updateUserSettings" }) // Useful for logging/instrumentation
+  .schema(saveUserSettingsBody) // Apply Zod schema for input validation
   .action(
     async ({
-      ctx: { userId }, // Access context provided by the safe-action client
-      parsedInput: { aiProvider, aiModel, aiApiKey }, // Validated and typed input
+      ctx: { userId }, // Access userId from the context provided by actionClientUser
+      parsedInput, // Contains validated and typed input (e.g., { displayName, themePreference })
     }) => {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { aiProvider, aiModel, aiApiKey },
-      });
+      const userRef = adminDb.collection('users').doc(userId);
+      
+      // Prepare data for Firestore. Only include fields that are actually provided in the input
+      // to avoid overwriting existing fields with undefined.
+      const updateData: { [key: string]: any } = {};
+      if (parsedInput.displayName !== undefined) {
+        updateData.displayName = parsedInput.displayName;
+      }
+      if (parsedInput.themePreference !== undefined) {
+        updateData.themePreference = parsedInput.themePreference;
+      }
+      // Add other updatable fields from parsedInput here
+
+      if (Object.keys(updateData).length === 0) {
+        // No actual data fields were provided for update
+        // You could return an error or a specific success message
+        // return { serverError: "No settings provided to update." }; 
+        return { success: true, message: "No settings were changed as no new values were provided." };
+      }
+
+      // Add a timestamp for when the document was last updated
+      updateData.updatedAt = FieldValue.serverTimestamp();
+
+      try {
+        await userRef.update(updateData);
+
+        // Revalidate relevant paths if these settings affect data displayed on cached pages
+        revalidatePath(`/profile`); // Or a more specific path like `/profile/${userId}`
+        revalidatePath('/settings/account');
+        
+        return { success: true, message: "User settings updated successfully." };
+      } catch (error) {
+        console.error("Error updating user settings:", error);
+        // Handle potential errors, e.g., Firestore write errors
+        return { serverError: "Failed to update user settings. Please try again." };
+      }
     },
   );
 
-// Example using actionClient (requires authenticated user + bound emailAccountId)
-export const updateEmailSettingsAction = actionClient
-  .metadata({ name: "updateEmailSettings" })
-  .schema(saveEmailUpdateSettingsBody)
-  // Note: emailAccountId is bound when calling this action from the client
-  .action(
-    async ({
-      ctx: { emailAccountId }, // Access context (includes userId, email etc.)
-      parsedInput: { statsEmailFrequency, summaryEmailFrequency },
-    }) => {
-      await prisma.emailAccount.update({
-        where: { id: emailAccountId },
-        data: {
-          statsEmailFrequency,
-          summaryEmailFrequency,
-        },
-      });
-    },
-  );
+// You can add other server action examples here, ensuring they use Firebase Admin SDK for database operations.
+// For instance, an action that might use the more generic 'actionClient' (if it needs entityId bound from client):
+/*
+import { actionClient } from "@/utils/actions/safe-action";
+import { someOtherActionBody } from "@/utils/actions/someAction.validation";
 
+export const manageEntityAction = actionClient
+  .metadata({ name: "manageEntityAction" })
+  .schema(someOtherActionBody)
+  .action(async ({ ctx: { userId, entityId }, parsedInput }) => {
+    // ... logic using adminDb to interact with Firestore based on userId and entityId
+    // Example: const entityRef = adminDb.collection('entities').doc(entityId);
+    // await entityRef.set({ ...parsedInput, ownerId: userId, updatedAt: FieldValue.serverTimestamp() });
+    // revalidatePath(`/entities/${entityId}`);
+    return { success: true, message: "Entity managed successfully." };
+  });
+*/
 ```
 
 ## Implementation Guidelines
 - **Use `next-safe-action`:** Implement all server actions using the `next-safe-action` library for type safety, input validation, context management, and error handling. Refer to `apps/web/utils/actions/safe-action.ts` for client definitions (`actionClient`, `actionClientUser`, `adminActionClient`).
 - **Choose the Right Client:**
     - `actionClientUser`: Use when only authenticated user context (`userId`) is needed.
-    - `actionClient`: Use when both authenticated user context *and* a specific `emailAccountId` are needed. The `emailAccountId` must be bound when calling the action from the client.
-    - `adminActionClient`: Use for actions restricted to admin users.
+    - `actionClient`: Use when both authenticated user context *and* a specific ID (e.g., `entityId`, `documentId`) are needed, which should be bound when calling the action from the client.
+    - `adminActionClient`: Use for actions restricted to admin users (ensure your `adminActionClient` correctly verifies admin status, possibly by checking a custom claim or a role in Firestore).
+- **Database Interaction:** All database operations within Server Actions **must** use the **Firebase Admin SDK** (e.g., `adminDb.collection('yourCollection').doc('yourDoc').set({...})`).
 - **Input Validation:** Define input validation schemas using Zod in the corresponding `.validation.ts` file. These schemas are used by `next-safe-action` (`.schema()`) and can also be reused on the client for form validation.
-- **Context (`ctx`):** Access necessary context (like `userId`, `emailAccountId`, etc.) provided by the safe action client via the `ctx` object in the `.action()` handler.
+- **Context (`ctx`):** Access necessary context (like `userId`, or other bound IDs like `entityId`) provided by the safe action client via the `ctx` object in the `.action()` handler.
 - **Mutations Only:** Server Actions are **strictly for mutations** (operations that change data, e.g., creating, updating, deleting). **Do NOT use Server Actions for data fetching (GET operations).**
-    - For data fetching, use dedicated [GET API Routes](mdc:.cursor/rules/get-api-route.mdc) combined with [SWR Hooks](mdc:.cursor/rules/data-fetching.mdc).
-- **Error Handling:** `next-safe-action` provides centralized error handling. Use `SafeError` for expected/handled errors within actions if needed (see `apps/web/utils/actions/safe-action.ts`).
-- **Instrumentation:** Sentry instrumentation is automatically applied via `withServerActionInstrumentation` within the safe action clients. Use the `.metadata({ name: "actionName" })` method to provide a meaningful name for monitoring.
-- **Cache Invalidation:** If an action modifies data displayed elsewhere, use `revalidatePath` or `revalidateTag` from `next/cache` within the action handler as needed.
+    - For data fetching, use dedicated [GET API Routes](mdc:.cursor/rules/get-api-route.mdc) (which can use Firebase Admin SDK) combined with client-side fetching libraries like SWR, or use Firebase Client SDK directly in client components as per [data-fetching.mdc](mdc:.cursor/rules/data-fetching.mdc).
+- **Error Handling:** `next-safe-action` provides centralized error handling. Use `SafeError` for expected/handled errors within actions if needed. Ensure your actions return appropriate `serverError` messages for client-side feedback.
+- **Instrumentation:** Sentry instrumentation is automatically applied via `withServerActionInstrumentation` within the safe action clients (if configured). Use the `.metadata({ name: "actionName" })` method to provide a meaningful name for monitoring.
+- **Cache Invalidation:** If an action modifies data displayed elsewhere, use `revalidatePath` or `revalidateTag` from `next/cache` within the action handler as needed to update stale data.

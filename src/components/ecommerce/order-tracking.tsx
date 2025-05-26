@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { OrderTrackingSkeleton } from '@/components/ui/skeleton';
 import { 
   Package, 
   Truck, 
@@ -202,15 +203,7 @@ export function OrderTracking({
   };
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <OrderTrackingSkeleton />;
   }
 
   const currentStatus = getCurrentStatus();

@@ -8,6 +8,7 @@ import { ChatSupport } from '@/components/ecommerce/chat-support'
 import { AddToCartProvider } from '@/components/ecommerce/add-to-cart-provider'
 import { ThemeProvider } from '@/contexts/theme-context'
 import { AuthProvider } from '@/contexts/auth-context'
+import { RealTimePerformanceMonitor } from '@/components/performance/real-time-monitor'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -55,6 +56,7 @@ export default function RootLayout({
               <Footer />
               <Toaster />
               <ChatSupport />
+              <RealTimePerformanceMonitor />
             </AddToCartProvider>
           </AuthProvider>
         </ThemeProvider>
