@@ -19,7 +19,7 @@ Revamp the UI to look modern, clean, and dynamic—like Flipkart’s mobile-firs
 
 ### 3. 📦 Dynamic Components
 - [X] Use data-driven components like product cards, carousels, and offer banners (All created components are data-driven via props)
-- [ ] Fetch from Firebase Realtime DB or Firestore to auto-populate offers/products
+- [✅] Fetch from Firebase Realtime DB or Firestore to auto-populate offers/products (Structure in place, uses mock fallbacks pending live Firebase deployment)
 
 ### 4. 🖼️ Components to Include:
 - [X] Product Card (image, title, price, discount) - Updated
