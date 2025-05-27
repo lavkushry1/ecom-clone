@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,12 +26,22 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ onProductSelect }
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, [selectedCategory, searchTerm]);
+  const fetchCategories = useCallback(async () => {
+    try {
+      // This would be replaced with actual API call
+      // For now, using mock data
+      setCategories([
+        { id: '1', name: 'Electronics', description: 'Electronic items', slug: 'electronics', isActive: true, sortOrder: 1, productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: '2', name: 'Clothing', description: 'Apparel and accessories', slug: 'clothing', isActive: true, sortOrder: 2, productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: '3', name: 'Books', description: 'Books and magazines', slug: 'books', isActive: true, sortOrder: 3, productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: '4', name: 'Home & Garden', description: 'Home improvement items', slug: 'home-garden', isActive: true, sortOrder: 4, productCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      ]);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -56,24 +66,14 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ onProductSelect }
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, searchTerm, toast]);
 
-  const fetchCategories = async () => {
-    try {
-      // This would be replaced with actual API call
-      // For now, using mock data
-      setCategories([
-        { id: '1', name: 'Electronics', description: 'Electronic items' },
-        { id: '2', name: 'Clothing', description: 'Apparel and accessories' },
-        { id: '3', name: 'Books', description: 'Books and magazines' },
-        { id: '4', name: 'Home & Garden', description: 'Home improvement items' },
-      ]);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
 
-  const deleteProduct = async (productId: string) => {
+  const deleteProduct = useCallback(async (productId: string) => {
     try {
       const response = await fetch(`/api/products?id=${productId}`, {
         method: 'DELETE',
@@ -97,7 +97,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ onProductSelect }
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);

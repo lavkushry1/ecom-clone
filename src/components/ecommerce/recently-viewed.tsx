@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,8 +79,8 @@ export function RecentlyViewed({
   const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'price-low' | 'price-high' | 'rating'>('recent');
   const [showFilters, setShowFilters] = useState(false);
 
-  const { addToCart } = useCart();
-  const { isInWishlist, toggleWishlist } = useWishlist();
+  const { addItem } = useCart();
+  const { isInWishlist, addItem: addToWishlist, removeItem: removeFromWishlist } = useWishlist();
   const { toast } = useToast();
 
   // Load recently viewed products from localStorage
@@ -282,7 +282,7 @@ export function RecentlyViewed({
     });
   };
 
-  const handleAddToCart = (product: ViewedProduct) => {
+  const handleAddToCart = useCallback((product: ViewedProduct) => {
     if (!product.inStock) {
       toast({
         title: "Out of stock",
@@ -292,31 +292,47 @@ export function RecentlyViewed({
       return;
     }
 
-    addToCart({
+    addItem({
       id: product.id,
       name: product.name,
       price: product.price,
-      image: product.image,
-      quantity: 1
-    });
+      images: [product.image],
+      category: product.category,
+      subcategory: '',
+      brand: product.brand,
+      description: product.description || '',
+      features: [],
+      specifications: {},
+      stock: 10,
+      rating: { average: product.rating, count: product.reviewCount },
+      tags: product.tags || [],
+      isFeatured: false,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }, 1);
 
     toast({
       title: "Added to cart",
       description: `${product.name} has been added to your cart`,
     });
-  };
+  }, [addItem, toast]);
 
-  const handleWishlistToggle = (product: ViewedProduct) => {
-    toggleWishlist(product.id);
-    const isNowInWishlist = !isInWishlist(product.id);
-    
-    toast({
-      title: isNowInWishlist ? "Added to wishlist" : "Removed from wishlist",
-      description: isNowInWishlist 
-        ? `${product.name} has been added to your wishlist`
-        : `${product.name} has been removed from your wishlist`,
-    });
-  };
+  const handleWishlistToggle = useCallback((product: ViewedProduct) => {
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
+      toast({
+        title: "Removed from wishlist",
+        description: `${product.name} has been removed from your wishlist`,
+      });
+    } else {
+      addToWishlist(product.id);
+      toast({
+        title: "Added to wishlist",
+        description: `${product.name} has been added to your wishlist`,
+      });
+    }
+  }, [isInWishlist, addToWishlist, removeFromWishlist, toast]);
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date();

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Package, Clock, Truck, CheckCircle, XCircle, Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,11 +17,7 @@ const OrderManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | ''>('');
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/orders');
@@ -42,9 +38,13 @@ const OrderManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     try {
       const response = await fetch('/api/orders', {
         method: 'PATCH',
@@ -72,7 +72,7 @@ const OrderManagement: React.FC = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Search, Package, Tag, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,11 +50,7 @@ const CategoryManagement: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
       // Mock data - replace with actual API call
@@ -152,9 +148,13 @@ const CategoryManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const deleteCategory = async (categoryId: string) => {
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const deleteCategory = useCallback(async (categoryId: string) => {
     try {
       // Check if category has subcategories or products
       const hasSubcategories = categories.some(cat => cat.parentId === categoryId);
@@ -189,7 +189,7 @@ const CategoryManagement: React.FC = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [categories, toast]);
 
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

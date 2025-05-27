@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ProductService } from '@/lib/firebase-services';
 import { ProductCard } from '@/components/ecommerce/product-card';
@@ -24,13 +24,7 @@ export default function SearchPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    if (query) {
-      searchProducts(query);
-    }
-  }, [query, sortBy, priceRange, selectedCategories]);
-
-  const searchProducts = async (searchQuery: string) => {
+  const searchProducts = useCallback(async (searchQuery: string) => {
     setLoading(true);
     try {
       let results = await ProductService.searchProducts(searchQuery);
@@ -68,7 +62,13 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sortBy, priceRange, selectedCategories]);
+
+  useEffect(() => {
+    if (query) {
+      searchProducts(query);
+    }
+  }, [query, searchProducts]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

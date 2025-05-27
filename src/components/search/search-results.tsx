@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,15 +74,7 @@ export function SearchResults({
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
 
-  // Search when query changes
-  useEffect(() => {
-    if (query.trim()) {
-      searchProducts(query);
-      generateSearchSuggestions(query);
-    }
-  }, [query, searchProducts]);
-
-  const generateSearchSuggestions = (searchQuery: string) => {
+  const generateSearchSuggestions = useCallback((searchQuery: string) => {
     // Mock suggestions - in real app, this would come from API
     const suggestions: SearchSuggestion[] = [
       { id: '1', text: `${searchQuery} case`, type: 'product', count: 150 },
@@ -92,9 +84,17 @@ export function SearchResults({
       { id: '5', text: `premium ${searchQuery}`, type: 'product', count: 45 }
     ];
     setSearchSuggestions(suggestions);
-  };
+  }, []);
 
-  const handleAddToCart = (product: Product) => {
+  // Search when query changes
+  useEffect(() => {
+    if (query.trim()) {
+      searchProducts(query);
+      generateSearchSuggestions(query);
+    }
+  }, [query, searchProducts, generateSearchSuggestions]);
+
+  const handleAddToCart = useCallback((product: Product) => {
     if (product.stock === 0) {
       toast({
         title: "Out of stock",
@@ -109,9 +109,9 @@ export function SearchResults({
       title: "Added to cart",
       description: `${product.name} has been added to your cart`,
     });
-  };
+  }, [addItem, toast]);
 
-  const handleWishlistToggle = (product: Product) => {
+  const handleWishlistToggle = useCallback((product: Product) => {
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id);
       toast({
@@ -125,7 +125,7 @@ export function SearchResults({
         description: `${product.name} has been added to your wishlist`,
       });
     }
-  };
+  }, [isInWishlist, removeFromWishlist, addToWishlist, toast]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {

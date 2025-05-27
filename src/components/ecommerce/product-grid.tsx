@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,24 +73,24 @@ export function ProductGrid({
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
   const { toast } = useToast();
 
+  const handleViewModeChange = useCallback((mode: 'grid' | 'list') => {
+    setCurrentViewMode(mode);
+    onViewModeChange?.(mode);
+  }, [onViewModeChange]);
+
+  const handleSortChange = useCallback((value: string) => {
+    setSortBy(value);
+  }, []);
+
+  const handleFilterChange = useCallback((newFilters: typeof filters) => {
+    setFilters(newFilters);
+  }, []);
+
   useEffect(() => {
     fetchProducts();
   }, [categoryId, searchQuery, limit, sortBy, filters, fetchProducts]);
 
-  const handleViewModeChange = (mode: 'grid' | 'list') => {
-    setCurrentViewMode(mode);
-    onViewModeChange?.(mode);
-  };
-
-  const handleSortChange = (value: string) => {
-    setSortBy(value);
-  };
-
-  const handleFilterChange = (newFilters: typeof filters) => {
-    setFilters(newFilters);
-  };
-
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = useCallback((product: Product) => {
     if (product.stock === 0) {
       toast({
         title: "Out of stock",
@@ -106,9 +106,9 @@ export function ProductGrid({
       title: "Added to cart",
       description: `${product.name} has been added to your cart`,
     });
-  };
+  }, [addItem, toast]);
 
-  const handleWishlistToggle = (product: Product) => {
+  const handleWishlistToggle = useCallback((product: Product) => {
     if (isInWishlist(product.id)) {
       removeFromWishlist(product.id);
       toast({
@@ -122,7 +122,7 @@ export function ProductGrid({
         description: `${product.name} has been added to your wishlist`,
       });
     }
-  };
+  }, [isInWishlist, removeFromWishlist, addToWishlist, toast]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {

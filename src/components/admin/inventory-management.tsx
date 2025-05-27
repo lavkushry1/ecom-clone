@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,11 +65,7 @@ export default function InventoryManagement() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchInventoryReport();
-  }, []);
-
-  const fetchInventoryReport = async () => {
+  const fetchInventoryReport = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/inventory');
@@ -95,9 +91,13 @@ export default function InventoryManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleStockUpdate = async () => {
+  useEffect(() => {
+    fetchInventoryReport();
+  }, [fetchInventoryReport]);
+
+  const handleStockUpdate = useCallback(async () => {
     try {
       if (!stockUpdateForm.productId || stockUpdateForm.quantity <= 0) {
         toast({
@@ -147,7 +147,7 @@ export default function InventoryManagement() {
         variant: 'destructive'
       });
     }
-  };
+  }, [stockUpdateForm, toast, fetchInventoryReport]);
 
   const handleRestockRequest = async () => {
     try {

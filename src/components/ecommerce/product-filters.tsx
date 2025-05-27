@@ -8,18 +8,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { X, Star, Package, Tag, Percent } from 'lucide-react';
-
-interface FilterState {
-  priceRange: [number, number];
-  brands: string[];
-  rating: number;
-  availability: 'all' | 'in-stock' | 'out-of-stock';
-  discount: number;
-}
+import type { ProductFilters } from '@/types';
 
 interface ProductFiltersProps {
-  filters: FilterState;
-  onFilterChange: (filters: FilterState) => void;
+  filters: ProductFilters;
+  onFilterChange: (filters: ProductFilters) => void;
   onClose?: () => void;
   className?: string;
 }
@@ -59,15 +52,19 @@ export function ProductFilters({
     }).format(price);
   };
 
-  const handlePriceRangeChange = (range: [number, number]) => {
-    onFilterChange({ ...filters, priceRange: range });
+  const handlePriceRangeChange = (range: number[]) => {
+    onFilterChange({ 
+      ...filters, 
+      priceRange: { min: range[0], max: range[1] } 
+    });
   };
 
   const handleBrandToggle = (brand: string) => {
-    const updatedBrands = filters.brands.includes(brand)
-      ? filters.brands.filter(b => b !== brand)
-      : [...filters.brands, brand];
-    onFilterChange({ ...filters, brands: updatedBrands });
+    const currentBrands = filters.brand || [];
+    const updatedBrands = currentBrands.includes(brand)
+      ? currentBrands.filter((b: string) => b !== brand)
+      : [...currentBrands, brand];
+    onFilterChange({ ...filters, brand: updatedBrands });
   };
 
   const handleRatingChange = (rating: number) => {
@@ -84,8 +81,8 @@ export function ProductFilters({
 
   const clearAllFilters = () => {
     onFilterChange({
-      priceRange: [0, 500000],
-      brands: [],
+      priceRange: { min: 0, max: 500000 },
+      brand: [],
       rating: 0,
       availability: 'all',
       discount: 0
@@ -94,11 +91,11 @@ export function ProductFilters({
 
   const getActiveFiltersCount = () => {
     let count = 0;
-    if (filters.priceRange[0] > 0 || filters.priceRange[1] < 500000) count++;
-    if (filters.brands.length > 0) count++;
-    if (filters.rating > 0) count++;
-    if (filters.availability !== 'all') count++;
-    if (filters.discount > 0) count++;
+    if (filters.priceRange && (filters.priceRange.min > 0 || filters.priceRange.max < 500000)) count++;
+    if (filters.brand && filters.brand.length > 0) count++;
+    if (filters.rating && filters.rating > 0) count++;
+    if (filters.availability && filters.availability !== 'all') count++;
+    if (filters.discount && filters.discount > 0) count++;
     return count;
   };
 
@@ -142,7 +139,7 @@ export function ProductFilters({
         <CardContent className="space-y-4">
           <div className="px-2">
             <Slider
-              value={filters.priceRange}
+              value={filters.priceRange ? [filters.priceRange.min, filters.priceRange.max] : [0, 500000]}
               onValueChange={handlePriceRangeChange}
               max={500000}
               min={0}
@@ -150,8 +147,8 @@ export function ProductFilters({
               className="w-full"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-2">
-              <span>{formatPrice(filters.priceRange[0])}</span>
-              <span>{formatPrice(filters.priceRange[1])}</span>
+              <span>{formatPrice(filters.priceRange?.min || 0)}</span>
+              <span>{formatPrice(filters.priceRange?.max || 500000)}</span>
             </div>
           </div>
           
@@ -185,7 +182,7 @@ export function ProductFilters({
               <div key={brand} className="flex items-center space-x-2">
                 <Checkbox
                   id={`brand-${brand}`}
-                  checked={filters.brands.includes(brand)}
+                  checked={filters.brand?.includes(brand) || false}
                   onCheckedChange={() => handleBrandToggle(brand)}
                 />
                 <Label
@@ -198,9 +195,9 @@ export function ProductFilters({
             ))}
           </div>
           
-          {filters.brands.length > 0 && (
+          {filters.brand && filters.brand.length > 0 && (
             <div className="flex flex-wrap gap-1 pt-2 border-t">
-              {filters.brands.map((brand) => (
+              {filters.brand.map((brand: string) => (
                 <Badge
                   key={brand}
                   variant="secondary"

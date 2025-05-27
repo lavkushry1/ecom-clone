@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { OrderService } from '@/lib/firebase-services';
 import { Button } from '@/components/ui/button';
@@ -48,11 +48,22 @@ export default function ProfilePage() {
     isDefault: false,
   });
 
+  const loadOrders = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const userOrders = await OrderService.getUserOrders(user.uid);
+      setOrders(userOrders);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       loadOrders();
     }
-  }, [user]);
+  }, [user, loadOrders]);
 
   useEffect(() => {
     if (userData) {
@@ -62,17 +73,6 @@ export default function ProfilePage() {
       });
     }
   }, [userData]);
-
-  const loadOrders = async () => {
-    if (!user) return;
-    
-    try {
-      const userOrders = await OrderService.getUserOrders(user.uid);
-      setOrders(userOrders);
-    } catch (error) {
-      console.error('Error loading orders:', error);
-    }
-  };
 
   const handleUpdateProfile = async () => {
     setIsLoading(true);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useProducts } from '@/hooks/use-products';
 import { ProductCard } from '@/components/ecommerce/product-card';
@@ -39,19 +39,19 @@ export default function ProductsPage() {
   });
 
   // Handle search
-  const handleSearch = async (term: string) => {
+  const handleSearch = useCallback(async (term: string) => {
     if (term.trim()) {
       await searchProducts(term.trim());
     } else {
       await refetch();
     }
-  };
+  }, [searchProducts, refetch]);
 
   // Handle search input submit
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     handleSearch(searchTerm);
-  };
+  }, [handleSearch, searchTerm]);
 
   // Get current category name
   const currentCategory = categories.find(cat => cat.id === categoryParam);

@@ -66,7 +66,6 @@ export interface Product {
     count: number
   }
   tags: string[]
-  features?: string[]
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -85,9 +84,7 @@ export interface Cart {
   userId?: string // undefined for guest carts
   sessionId?: string // for guest carts
   items: CartItem[]
-  totalItems: number
   totalAmount: number
-  totalPrice?: number // for backward compatibility
   createdAt: string
   updatedAt: string
 }
@@ -106,7 +103,7 @@ export interface Order {
   billingAddress: Address
   paymentMethod: PaymentMethod
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded'
-  orderStatus: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  orderStatus: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
   subtotal: number
   shipping: number
   tax: number
@@ -217,6 +214,8 @@ export interface ProductFilters {
   }
   rating?: number
   inStock?: boolean
+  availability?: 'all' | 'in-stock' | 'out-of-stock'
+  discount?: number
   sortBy?: 'price_low' | 'price_high' | 'rating' | 'newest' | 'popularity'
 }
 
@@ -246,55 +245,4 @@ export interface CreditCardData {
   orderId: string
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
-
-// Additional missing types
-export interface ProductCategory {
-  id: string
-  name: string
-  description?: string
-  parentId?: string
-  slug: string
-  imageUrl?: string
-  isActive: boolean
-  sortOrder: number
-  productCount: number
-  createdAt: string
-  updatedAt: string
-}
-
-export interface OrderItem {
-  productId: string
-  product: Product
-  quantity: number
-  price: number
-  total: number
-  selectedSize?: string
-  selectedColor?: string
-}
-
-export interface ShippingAddress {
-  name: string
-  phone: string
-  addressLine1: string
-  addressLine2?: string
-  city: string
-  state: string
-  pincode: string
-  country?: string
-}
-
-export interface UpsellProduct {
-  id: string
-  name: string
-  description: string
-  originalPrice: number
-  salePrice: number
-  images: string[]
-  ratings: {
-    average: number
-    count: number
-  }
-  category: string
-  isActive: boolean
-}
+export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
