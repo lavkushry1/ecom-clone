@@ -204,7 +204,7 @@ export default function OrderTrackingPage() {
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Not Found</h1>
             <p className="text-gray-600 mb-6">
-              We couldn't find an order with ID: {orderId}
+              We couldn&apos;t find an order with ID: {orderId}
             </p>
             <Button onClick={() => router.push('/products')}>
               Continue Shopping

@@ -123,7 +123,7 @@ export default function HomePage() {
               Project Setup Complete! 🎉
             </h2>
             <p className="text-gray-600 mb-6 text-center">
-              Your Flipkart clone is ready for development. Here's what's been set up:
+              Your Flipkart clone is ready for development. Here&apos;s what&apos;s been set up:
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

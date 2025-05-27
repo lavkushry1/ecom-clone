@@ -182,7 +182,7 @@ export function UPIQRCode({
                 className="w-full"
                 variant="default"
               >
-                I've Made the Payment
+                I&apos;ve Made the Payment
               </Button>
               
               <div className="flex gap-2">

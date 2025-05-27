@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { performanceOptimizer } from '@/lib/performance-optimizer';
+import PerformanceOptimizer, { measureWebVitals } from '@/lib/performance-optimizer';
 
 interface PerformanceMonitorProps {
   pageName: string;
@@ -11,28 +11,22 @@ interface PerformanceMonitorProps {
 export function PerformanceMonitor({ pageName, children }: PerformanceMonitorProps) {
   useEffect(() => {
     // Initialize performance monitoring for this page
-    performanceOptimizer.monitorWebVitals();
+    measureWebVitals((metric) => {
+      console.log('Web Vital:', metric);
+    });
     
     // Preload critical resources based on page
     if (pageName === 'homepage') {
-      performanceOptimizer.preloadCriticalImages([
-        '/images/hero-banner.jpg',
-        '/images/categories/electronics.jpg',
-        '/images/categories/fashion.jpg'
-      ]);
+      PerformanceOptimizer.preloadImage('/images/hero-banner.jpg', true);
+      PerformanceOptimizer.preloadImage('/images/categories/electronics.jpg');
+      PerformanceOptimizer.preloadImage('/images/categories/fashion.jpg');
     } else if (pageName === 'product-details') {
-      performanceOptimizer.prefetchRoute('/cart');
+      // Could add route prefetching here if needed
     }
 
-    // Monitor memory usage
-    const checkMemory = () => {
-      performanceOptimizer.monitorMemoryUsage();
-    };
-
-    const memoryInterval = setInterval(checkMemory, 30000); // Check every 30 seconds
-
+    // Memory monitoring would be done by the optimizer
     return () => {
-      clearInterval(memoryInterval);
+      // Cleanup if needed
     };
   }, [pageName]);
 
@@ -50,7 +44,7 @@ export function usePerformanceMetrics() {
       };
 
       // Measure and report Core Web Vitals
-      performanceOptimizer.monitorWebVitals();
+      measureWebVitals(reportWebVitals);
     }
   }, []);
 

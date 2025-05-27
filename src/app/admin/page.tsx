@@ -125,10 +125,22 @@ export default function AdminDashboard() {
 
   const { toast } = useToast()
 
-  const seedData = () => {
-    DataSeeder.seedProducts(50)
-    DataSeeder.seedOrders(100)
-    toast.success('Seeded 50 products and 100 orders');
+  const seedData = async () => {
+    try {
+      await DataSeeder.seedProducts();
+      await DataSeeder.seedCategories();
+      toast({
+        title: 'Success',
+        description: 'Seeded products and categories successfully'
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to seed data',
+        variant: 'destructive'
+      });
+      console.error(error);
+    }
   }
 
   const getStatusBadge = (status: string) => {

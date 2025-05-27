@@ -66,6 +66,7 @@ export interface Product {
     count: number
   }
   tags: string[]
+  features?: string[]
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -84,7 +85,9 @@ export interface Cart {
   userId?: string // undefined for guest carts
   sessionId?: string // for guest carts
   items: CartItem[]
+  totalItems: number
   totalAmount: number
+  totalPrice?: number // for backward compatibility
   createdAt: string
   updatedAt: string
 }

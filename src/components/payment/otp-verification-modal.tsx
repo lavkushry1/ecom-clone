@@ -317,7 +317,7 @@ export function OTPVerificationModal({
 
           {/* Resend Section */}
           <div className="text-center space-y-2">
-            <p className="text-sm text-gray-600">Didn't receive the code?</p>
+            <p className="text-sm text-gray-600">Didn&apos;t receive the code?</p>
             <Button
               variant="ghost"
               size="sm"

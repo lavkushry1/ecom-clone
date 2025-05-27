@@ -70,8 +70,8 @@ export class CartService {
         existingCart.totalItems = existingCart.items.reduce(
           (sum, cartItem) => sum + cartItem.quantity, 0
         );
-        existingCart.totalPrice = existingCart.items.reduce(
-          (sum, cartItem) => sum + (cartItem.price * cartItem.quantity), 0
+        existingCart.totalAmount = existingCart.items.reduce(
+          (sum, cartItem) => sum + (cartItem.product.salePrice * cartItem.quantity), 0
         );
 
         await this.saveCart(sessionId, existingCart);
@@ -81,9 +81,9 @@ export class CartService {
           sessionId,
           items: [item],
           totalItems: item.quantity,
-          totalPrice: item.price * item.quantity,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          totalAmount: item.product.salePrice * item.quantity,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
 
         await this.saveCart(sessionId, newCart);
@@ -118,8 +118,8 @@ export class CartService {
         cart.totalItems = cart.items.reduce(
           (sum, item) => sum + item.quantity, 0
         );
-        cart.totalPrice = cart.items.reduce(
-          (sum, item) => sum + (item.price * item.quantity), 0
+        cart.totalAmount = cart.items.reduce(
+          (sum, item) => sum + (item.product.salePrice * item.quantity), 0
         );
 
         await this.saveCart(sessionId, cart);
@@ -198,7 +198,7 @@ export class CartService {
           ...remoteCart,
           items: mergedItems,
           totalItems: mergedItems.reduce((sum, item) => sum + item.quantity, 0),
-          totalPrice: mergedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+          totalAmount: mergedItems.reduce((sum, item) => sum + (item.product.salePrice * item.quantity), 0),
         };
 
         await this.saveCart(sessionId, updatedCart);
@@ -208,9 +208,9 @@ export class CartService {
           sessionId,
           items: localCartItems,
           totalItems: localCartItems.reduce((sum, item) => sum + item.quantity, 0),
-          totalPrice: localCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          totalAmount: localCartItems.reduce((sum, item) => sum + (item.product.salePrice * item.quantity), 0),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
 
         await this.saveCart(sessionId, newCart);

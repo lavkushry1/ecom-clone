@@ -26,16 +26,16 @@ import {
 
 import { 
   sendOrderConfirmation,
-  sendOrderUpdate,
-  sendWelcomeEmail 
+  sendOrderStatusUpdate,
+  sendNotification
 } from './notifications'
 
 import {
   createProduct,
   updateProduct,
   deleteProduct,
-  getProducts,
-  searchProducts
+  searchProducts,
+  getProductRecommendations
 } from './products'
 
 import {
@@ -68,15 +68,15 @@ export {
   
   // Notification Functions
   sendOrderConfirmation,
-  sendOrderUpdate,
-  sendWelcomeEmail,
+  sendOrderStatusUpdate,
+  sendNotification,
   
   // Product Functions
   createProduct,
   updateProduct,
   deleteProduct,
-  getProducts,
   searchProducts,
+  getProductRecommendations,
   
   // Inventory Functions
   updateStock,

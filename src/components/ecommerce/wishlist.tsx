@@ -6,8 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProductCardSkeleton, ListSkeleton } from '@/components/ui/skeleton';
 import { Dropdown, DropdownItem } from '@/components/ui/dropdown';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/hooks/use-cart';
+import { Product } from '@/types';
 import { 
   Heart, 
   ShoppingCart, 
@@ -45,7 +53,7 @@ interface WishlistComponentProps {
 
 export function WishlistComponent({ className = '' }: WishlistComponentProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([
     {
       id: '1',
       name: 'iPhone 15 Pro Max 256GB',
@@ -112,7 +120,7 @@ export function WishlistComponent({ className = '' }: WishlistComponentProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredItems, setFilteredItems] = useState<WishlistItem[]>(wishlistItems);
 
-  const { addToCart } = useCart();
+  const { addItem } = useCart();
   const { toast } = useToast();
 
   // Filter and sort wishlist items
@@ -172,13 +180,30 @@ export function WishlistComponent({ className = '' }: WishlistComponentProps) {
       return;
     }
 
-    addToCart({
+    // Convert wishlist item to product format
+    const product: Product = {
       id: item.id,
       name: item.name,
-      price: item.price,
-      image: item.image,
-      quantity: 1
-    });
+      description: item.description,
+      category: item.category,
+      subcategory: '',
+      brand: item.brand,
+      images: [item.image],
+      originalPrice: item.originalPrice || item.price,
+      salePrice: item.price,
+      stock: item.inStock ? 10 : 0,
+      specifications: {},
+      ratings: {
+        average: item.rating,
+        count: item.reviewCount
+      },
+      tags: [],
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    addItem(product, 1);
 
     toast({
       title: "Added to cart",

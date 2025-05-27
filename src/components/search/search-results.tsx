@@ -166,7 +166,7 @@ export function SearchResults({
           Start your search
         </h3>
         <p className="text-gray-500">
-          Enter a product name, brand, or category to find what you're looking for
+          Enter a product name, brand, or category to find what you&apos;re looking for
         </p>
       </div>
     );
@@ -197,7 +197,7 @@ export function SearchResults({
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">
-            Search results for "{query}"
+            Search results for &quot;{query}&quot;
           </h2>
           <p className="text-gray-600">
             Found {products.length} product{products.length !== 1 ? 's' : ''}

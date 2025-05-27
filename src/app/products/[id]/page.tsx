@@ -26,12 +26,31 @@ export default function ProductDetailPage() {
   const productId = params.id as string;
   
   const { product, loading, error } = useProduct(productId);
-  const { addToCart } = useCart();
-  const { isInWishlist, toggleWishlist } = useWishlist();
+  const { addItem, isInCart } = useCart();
+  const { isInWishlist, toggleItem } = useWishlist();
+  const { trackView } = useRecentlyViewed();
   
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+
+  // Track product view when component mounts and product loads
+  useEffect(() => {
+    if (product) {
+      trackView(product.id, {
+        name: product.name,
+        price: product.salePrice,
+        originalPrice: product.originalPrice,
+        rating: product.ratings.average,
+        reviewCount: product.ratings.count,
+        image: product.images[0],
+        category: product.category,
+        brand: product.brand,
+        inStock: product.stock > 0,
+        description: product.description
+      });
+    }
+  }, [product, productId, trackView]);
 
   if (loading) {
     return (
@@ -62,13 +81,7 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     try {
       setAddingToCart(true);
-      await addToCart({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.images[0],
-        quantity,
-      });
+      addItem(product, quantity);
     } catch (error) {
       console.error('Error adding to cart:', error);
     } finally {
@@ -86,7 +99,7 @@ export default function ProductDetailPage() {
   const isWishlistItem = isInWishlist(product.id);
   const isOutOfStock = product.stock === 0;
   const discountPercentage = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(((product.originalPrice - product.salePrice) / product.originalPrice) * 100)
     : 0;
 
   return (
@@ -154,14 +167,14 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Rating */}
-            {product.rating && (
+            {product.ratings && (
               <div className="flex items-center gap-2">
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        i < Math.floor(product.rating!)
+                        i < Math.floor(product.ratings.average)
                           ? 'text-yellow-400 fill-current'
                           : 'text-gray-300'
                       }`}
@@ -169,7 +182,7 @@ export default function ProductDetailPage() {
                   ))}
                 </div>
                 <span className="text-sm text-gray-600">
-                  ({product.rating}) • {product.reviewCount || 0} reviews
+                  ({product.ratings.average}) • {product.ratings.count} reviews
                 </span>
               </div>
             )}
@@ -178,7 +191,7 @@ export default function ProductDetailPage() {
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <span className="text-3xl font-bold text-gray-900">
-                  ₹{product.price.toLocaleString()}
+                  ₹{product.salePrice.toLocaleString()}
                 </span>
                 {product.originalPrice && (
                   <span className="text-lg text-gray-500 line-through">
@@ -254,7 +267,7 @@ export default function ProductDetailPage() {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => toggleWishlist(product)}
+                  onClick={() => toggleItem(product.id)}
                   className={isWishlistItem ? 'text-red-600 border-red-600' : ''}
                 >
                   <Heart

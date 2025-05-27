@@ -26,12 +26,10 @@ export function ProductCard({
   const handleAddToCart = () => {
     onAddToCart?.(product.id)
     showToast({
-      product: {
-        id: product.id,
-        name: product.name,
-        image: product.images[0] || '/placeholder-product.jpg',
-        price: product.salePrice
-      },
+      id: product.id,
+      name: product.name,
+      image: product.images[0] || '/placeholder-product.jpg',
+      price: product.salePrice,
       quantity: 1
     })
   }

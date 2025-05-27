@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AdvancedSkeleton } from '@/components/ui/advanced-skeleton';
-import { performanceOptimizer } from '@/lib/performance-optimizer';
+import PerformanceOptimizer, { measureWebVitals } from '@/lib/performance-optimizer';
 
 interface WebVitalsMetrics {
   lcp?: number;
@@ -88,7 +88,9 @@ export function RealTimePerformanceMonitor() {
     const interval = setInterval(collectPerformanceData, 5000);
 
     // Listen for Web Vitals updates
-    performanceOptimizer.monitorWebVitals();
+    measureWebVitals((metric) => {
+      console.log('Web Vital:', metric);
+    });
 
     return () => {
       clearInterval(interval);

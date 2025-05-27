@@ -322,7 +322,7 @@ export default function RecentlyViewedPage() {
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>• Your recently viewed products are saved locally for up to 50 items</li>
                 <li>• Use the filters to find specific products from your history</li>
-                <li>• Products viewed in the current session are marked as "Recent"</li>
+                <li>• Products viewed in the current session are marked as &quot;Recent&quot;</li>
                 <li>• Clear your history anytime to start fresh</li>
               </ul>
             </CardContent>

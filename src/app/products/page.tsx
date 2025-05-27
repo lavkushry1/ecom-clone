@@ -223,7 +223,7 @@ export default function ProductsPage() {
                   No products found
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Try adjusting your search or filters to find what you're looking for.
+                  Try adjusting your search or filters to find what you&apos;re looking for.
                 </p>
                 <Button onClick={refetch} variant="outline">
                   Clear Filters

@@ -21,9 +21,9 @@ export default function CartPage() {
   const { 
     items, 
     totalItems, 
-    totalPrice, 
+    totalAmount, 
     updateQuantity, 
-    removeFromCart, 
+    removeItem, 
     clearCart 
   } = useCart();
 
@@ -32,7 +32,7 @@ export default function CartPage() {
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      removeFromCart(productId);
+      removeItem(productId);
     } else {
       updateQuantity(productId, newQuantity);
     }
@@ -41,16 +41,16 @@ export default function CartPage() {
   const handleApplyPromo = () => {
     // Simple promo code logic - in real app, this would be more sophisticated
     if (promoCode.toLowerCase() === 'welcome10') {
-      setDiscount(totalPrice * 0.1);
+      setDiscount(totalAmount * 0.1);
     } else if (promoCode.toLowerCase() === 'flipkart5') {
-      setDiscount(totalPrice * 0.05);
+      setDiscount(totalAmount * 0.05);
     } else {
       setDiscount(0);
       alert('Invalid promo code');
     }
   };
 
-  const finalTotal = totalPrice - discount;
+  const finalTotal = totalAmount - discount;
   const savings = discount;
 
   if (items.length === 0) {
@@ -116,7 +116,7 @@ export default function CartPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeFromCart(item.productId)}
+                          onClick={() => removeItem(item.productId)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -230,7 +230,7 @@ export default function CartPage() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span>Subtotal ({totalItems} items)</span>
-                  <span>₹{totalPrice.toLocaleString()}</span>
+                  <span>₹{totalAmount.toLocaleString()}</span>
                 </div>
                 
                 <div className="flex justify-between">

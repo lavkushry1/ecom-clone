@@ -430,7 +430,7 @@ export function OrderTracking({
             <div>
               <h4 className="font-medium text-yellow-800 mb-1">Need Help?</h4>
               <p className="text-sm text-yellow-700 mb-2">
-                If your package hasn't arrived within the expected timeframe or you have any concerns, 
+                If your package hasn&apos;t arrived within the expected timeframe or you have any concerns, 
                 our customer support team is here to help.
               </p>
               <div className="flex gap-2">

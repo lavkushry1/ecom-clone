@@ -51,9 +51,10 @@ export function useFormValidation<T extends Record<string, any>>({
 
   const validateField = useCallback((field: keyof T, value: any): string | null => {
     try {
-      // Create a partial schema for single field validation
-      const fieldSchema = schema.pick({ [field]: true } as any);
-      fieldSchema.parse({ [field]: value });
+      // For single field validation, we'll validate the entire object 
+      // but only return errors for the specific field
+      const testData = { ...values, [field]: value };
+      schema.parse(testData);
       return null;
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -62,7 +63,7 @@ export function useFormValidation<T extends Record<string, any>>({
       }
       return 'Validation error';
     }
-  }, [schema]);
+  }, [schema, values]);
 
   const validate = useCallback((field?: keyof T): boolean => {
     try {

@@ -1,94 +1,95 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { headers } from 'next/headers'
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { transactionId, upiId, amount, orderId } = body
+    const body = await request.json();
+    const { vpa, amount, currency = 'INR', transactionNote } = body;
 
     // Validate required fields
-    if (!transactionId || !upiId || !amount || !orderId) {
+    if (!vpa || !amount) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required UPI information' },
         { status: 400 }
-      )
+      );
     }
 
-    // Validate UPI ID format (basic validation)
-    const upiIdRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z][a-zA-Z0-9.\-_]{2,64}$/
-    if (!upiIdRegex.test(upiId)) {
+    // Basic UPI ID validation
+    const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+    if (!upiRegex.test(vpa)) {
       return NextResponse.json(
         { error: 'Invalid UPI ID format' },
         { status: 400 }
-      )
+      );
     }
 
     // Validate amount
-    if (typeof amount !== 'number' || amount <= 0) {
+    if (amount <= 0 || amount > 100000) {
       return NextResponse.json(
-        { error: 'Invalid amount' },
+        { error: 'Invalid amount. Must be between ₹1 and ₹1,00,000' },
         { status: 400 }
-      )
+      );
     }
 
-    // In a real implementation, you would:
-    // 1. Validate the order exists and belongs to the user
-    // 2. Check if payment is not already processed
-    // 3. Integrate with actual UPI payment gateway (like Razorpay, PayU, etc.)
-    // 4. Store payment attempt in database
-    // 5. Handle webhook responses from payment gateway
+    // Generate UPI payment request string
+    const upiString = `upi://pay?pa=${vpa}&pn=Flipkart%20Clone&am=${amount}&cu=${currency}&tn=${encodeURIComponent(transactionNote || 'Payment')}`;
+    
+    // Simulate payment processing (replace with actual UPI payment gateway integration)
+    const paymentId = `upi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Simulate success/failure (95% success rate for UPI)
+    const isSuccess = Math.random() > 0.05;
 
-    console.log('Processing UPI payment:', {
-      transactionId,
-      upiId,
-      amount,
-      orderId,
-      timestamp: new Date().toISOString()
-    })
-
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Simulate success/failure based on UPI ID (for demo purposes)
-    const shouldSucceed = !upiId.includes('fail')
-
-    if (shouldSucceed) {
-      // In real implementation, this would be the payment gateway response
-      const paymentResponse = {
+    if (isSuccess) {
+      return NextResponse.json({
         success: true,
-        transactionId,
-        gatewayTransactionId: `gw_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        status: 'pending', // Payment initiated, waiting for user confirmation in UPI app
+        paymentId,
+        transactionId: `txn_${paymentId}`,
+        upiString,
         amount,
-        currency: 'INR',
-        upiId,
-        orderId,
-        message: 'Payment initiated successfully. Please complete the payment in your UPI app.',
-        timestamp: new Date().toISOString()
-      }
-
-      return NextResponse.json(paymentResponse)
+        currency,
+        vpa,
+        status: 'pending', // UPI payments typically start as pending
+        message: 'UPI payment request generated successfully',
+        qrData: upiString // For QR code generation
+      });
     } else {
       return NextResponse.json(
-        {
+        { 
           success: false,
-          error: 'UPI payment initiation failed',
-          transactionId,
-          message: 'Unable to process UPI payment. Please try again or use a different payment method.'
+          error: 'UPI payment request failed',
+          code: 'UPI_REQUEST_FAILED'
         },
-        { status: 400 }
-      )
+        { status: 402 }
+      );
     }
-
   } catch (error) {
-    console.error('UPI payment processing error:', error)
-    
+    console.error('UPI payment processing error:', error);
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        message: 'Unable to process payment request. Please try again.'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
+}
+
+export async function GET(request: NextRequest) {
+  // Get payment status
+  const { searchParams } = new URL(request.url);
+  const paymentId = searchParams.get('paymentId');
+  
+  if (!paymentId) {
+    return NextResponse.json(
+      { error: 'Payment ID is required' },
+      { status: 400 }
+    );
+  }
+
+  // Simulate payment status check
+  const statuses = ['pending', 'completed', 'failed'];
+  const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+  
+  return NextResponse.json({
+    paymentId,
+    status: randomStatus,
+    timestamp: new Date().toISOString()
+  });
 }

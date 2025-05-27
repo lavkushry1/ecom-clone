@@ -100,7 +100,7 @@ export default function CheckoutPage() {
                 Order Confirmed!
               </h1>
               <p className="text-lg text-gray-600 mb-6">
-                Thank you for your order. We've received your payment and will process your order shortly.
+                Thank you for your order. We&apos;ve received your payment and will process your order shortly.
               </p>
               
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -157,8 +157,8 @@ export default function CheckoutPage() {
 
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>What's next?</strong><br />
-                  Your order will be processed within 10 minutes. You'll receive an email confirmation and tracking details shortly.
+                  <strong>What&apos;s next?</strong><br />
+                  Your order will be processed within 10 minutes. You&apos;ll receive an email confirmation and tracking details shortly.
                 </p>
               </div>
             </CardContent>

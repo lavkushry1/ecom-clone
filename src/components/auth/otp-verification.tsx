@@ -344,7 +344,7 @@ export function OTPVerification({
 
         {/* Help Text */}
         <div className="text-xs text-gray-500 text-center space-y-1">
-          <p>Didn't receive the OTP?</p>
+          <p>Didn&apos;t receive the OTP?</p>
           <p>Check your spam folder or try resending after the timer expires.</p>
         </div>
       </CardContent>
