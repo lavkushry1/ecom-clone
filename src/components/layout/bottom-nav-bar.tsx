@@ -14,8 +14,8 @@ interface NavItem {
 
 export function BottomNavBar() {
   const pathname = usePathname();
-  const { getTotalItems } = useCart();
-  const cartItemsCount = getTotalItems();
+  const { totalItems } = useCart();
+  const cartItemsCount = totalItems;
 
   const navItems: NavItem[] = [
     {

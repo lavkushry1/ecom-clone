@@ -8,6 +8,7 @@ import { ProductCardSkeleton, ListSkeleton } from '@/components/ui/skeleton';
 import { Dropdown, DropdownItem } from '@/components/ui/dropdown';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/hooks/use-cart';
+import { Product } from '@/types';
 import { 
   Heart, 
   ShoppingCart, 
@@ -183,16 +184,31 @@ export function WishlistComponent({ className = '' }: WishlistComponentProps) {
       return;
     }
 
-    addItem({
+    // Convert wishlist item to Product format for cart
+    const productForCart: Product = {
       id: item.id,
       name: item.name,
-      price: item.price,
-      image: item.image,
+      description: item.description,
       category: item.category,
+      subcategory: item.category, // Use category as subcategory fallback
       brand: item.brand,
-      rating: item.rating,
-      inStock: item.inStock
-    });
+      salePrice: item.price,
+      originalPrice: item.originalPrice || item.price,
+      images: [item.image],
+      stock: item.inStock ? 10 : 0, // Convert boolean to stock number
+      ratings: {
+        average: item.rating,
+        count: item.reviewCount
+      },
+      specifications: {},
+      features: [],
+      tags: [item.category.toLowerCase()],
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    addItem(productForCart);
 
     toast({
       title: "Added to cart",

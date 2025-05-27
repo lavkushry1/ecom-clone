@@ -470,7 +470,7 @@ export function NotificationSettings({ className = '' }: NotificationSettingsPro
           </div>
           <Switch
             checked={settings.enabled}
-            onCheckedChange={(enabled) => updateSettings({ enabled })}
+            onCheckedChange={(enabled: boolean) => updateSettings({ enabled })}
           />
         </div>
 
@@ -491,7 +491,7 @@ export function NotificationSettings({ className = '' }: NotificationSettingsPro
               </div>
               <Switch
                 checked={settings.desktop}
-                onCheckedChange={(desktop) => updateSettings({ desktop })}
+                onCheckedChange={(desktop: boolean) => updateSettings({ desktop })}
                 disabled={!settings.enabled}
               />
             </div>
@@ -506,7 +506,7 @@ export function NotificationSettings({ className = '' }: NotificationSettingsPro
               </div>
               <Switch
                 checked={settings.sound}
-                onCheckedChange={(sound) => updateSettings({ sound })}
+                onCheckedChange={(sound: boolean) => updateSettings({ sound })}
                 disabled={!settings.enabled}
               />
             </div>
@@ -521,7 +521,7 @@ export function NotificationSettings({ className = '' }: NotificationSettingsPro
               </div>
               <Switch
                 checked={settings.email}
-                onCheckedChange={(email) => updateSettings({ email })}
+                onCheckedChange={(email: boolean) => updateSettings({ email })}
                 disabled={!settings.enabled}
               />
             </div>
@@ -536,7 +536,7 @@ export function NotificationSettings({ className = '' }: NotificationSettingsPro
               </div>
               <Switch
                 checked={settings.push}
-                onCheckedChange={(push) => updateSettings({ push })}
+                onCheckedChange={(push: boolean) => updateSettings({ push })}
                 disabled={!settings.enabled}
               />
             </div>
@@ -554,7 +554,7 @@ export function NotificationSettings({ className = '' }: NotificationSettingsPro
             </div>
             <Switch
               checked={settings.quietHours.enabled}
-              onCheckedChange={(enabled) => updateSettings({
+              onCheckedChange={(enabled: boolean) => updateSettings({
                 quietHours: { ...settings.quietHours, enabled }
               })}
               disabled={!settings.enabled}
@@ -608,7 +608,7 @@ export function NotificationSettings({ className = '' }: NotificationSettingsPro
                 </div>
                 <Switch
                   checked={settings.types[key]}
-                  onCheckedChange={(enabled) => handleTypeToggle(key, enabled)}
+                  onCheckedChange={(enabled: boolean) => handleTypeToggle(key, enabled)}
                   disabled={!settings.enabled}
                 />
               </div>

@@ -36,6 +36,11 @@ interface UPIDetails {
   amount: number;
 }
 
+interface UPIQRResponse {
+  qrCode: string;
+  vpa: string;
+}
+
 interface PaymentRequest {
   orderId: string;
   amount: number;
@@ -47,6 +52,18 @@ interface PaymentRequest {
   };
   paymentMethod: string;
   paymentDetails: any;
+}
+
+interface UPIQRResponse {
+  qrCode: string;
+  vpa: string;
+}
+
+interface PaymentResponse {
+  success: boolean;
+  error?: string;
+  transactionId?: string;
+  paymentId?: string;
 }
 
 interface EnhancedPaymentFlowProps {
@@ -165,10 +182,11 @@ export default function EnhancedPaymentFlow({
       });
 
       if (result.data) {
-        setQrCode(result.data.qrCode);
+        const data = result.data as UPIQRResponse;
+        setQrCode(data.qrCode);
         setUPIDetails(prev => ({
           ...prev,
-          vpa: result.data.vpa || prev.vpa
+          vpa: data.vpa || prev.vpa
         }));
       }
     } catch (error) {
@@ -307,15 +325,20 @@ export default function EnhancedPaymentFlow({
       const processPaymentFunction = httpsCallable(functions, 'processPayment');
       const result = await processPaymentFunction(paymentRequest);
 
-      if (result.data?.success) {
-        setPaymentStatus('success');
-        toast({
-          title: 'Payment Successful',
-          description: 'Your payment has been processed successfully',
-        });
-        onPaymentSuccess(result.data);
+      if (result.data) {
+        const data = result.data as PaymentResponse;
+        if (data.success) {
+          setPaymentStatus('success');
+          toast({
+            title: 'Payment Successful',
+            description: 'Your payment has been processed successfully',
+          });
+          onPaymentSuccess(data);
+        } else {
+          throw new Error(data.error || 'Payment failed');
+        }
       } else {
-        throw new Error(result.data?.error || 'Payment failed');
+        throw new Error('No response from payment service');
       }
 
     } catch (error) {

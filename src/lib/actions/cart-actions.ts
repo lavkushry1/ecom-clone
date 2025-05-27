@@ -7,7 +7,10 @@ export async function getCartItems(sessionId: string) {
   try {
     const q = query(collection(db, 'cart'), where('sessionId', '==', sessionId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CartItem));
+    return snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    })) as CartItem[];
   } catch (error) {
     console.error('Error fetching cart items:', error);
     throw new Error('Failed to fetch cart items');

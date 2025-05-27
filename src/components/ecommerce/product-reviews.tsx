@@ -132,7 +132,13 @@ export function ProductReviews({
   const [showWriteReviewDialog, setShowWriteReviewDialog] = useState(false);
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
 
-  const { values, errors, handleChange, validateForm, resetForm } = useFormValidation(reviewSchema);
+  const { values, errors, setValue, validate, reset } = useFormValidation({ schema: reviewSchema });
+
+  // Helper function to get error message for a field
+  const getFieldError = (fieldName: string) => {
+    const error = errors.find(e => e.field === fieldName);
+    return error?.message;
+  };
 
   // Sort and filter reviews
   useEffect(() => {
@@ -165,20 +171,20 @@ export function ProductReviews({
   }, [reviews, sortBy, filterRating]);
 
   const handleReviewSubmit = () => {
-    if (validateForm() && onReviewSubmit) {
+    if (validate() && onReviewSubmit) {
       const reviewData = {
         ...values,
         userId: 'guest',
         userName: 'Guest User',
         isVerifiedPurchase: false,
-        pros: values.pros ? values.pros.split(',').map(p => p.trim()) : [],
-        cons: values.cons ? values.cons.split(',').map(p => p.trim()) : [],
-        recommendedFor: values.recommendedFor ? values.recommendedFor.split(',').map(p => p.trim()) : [],
+        pros: values.pros ? values.pros.split(',').map((p: string) => p.trim()) : [],
+        cons: values.cons ? values.cons.split(',').map((p: string) => p.trim()) : [],
+        recommendedFor: values.recommendedFor ? values.recommendedFor.split(',').map((p: string) => p.trim()) : [],
         images: selectedImages
       } as Omit<Review, 'id' | 'date' | 'helpful' | 'notHelpful'>;
 
       onReviewSubmit(reviewData);
-      resetForm();
+      reset();
       setSelectedImages([]);
       setShowWriteReviewDialog(false);
     }
@@ -345,8 +351,8 @@ export function ProductReviews({
                 {/* Rating */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Overall Rating *</label>
-                  {renderRatingStars(values.rating || 0, true, (rating) => handleChange('rating', rating))}
-                  {errors.rating && <p className="text-red-500 text-sm mt-1">{errors.rating}</p>}
+                  {renderRatingStars(values.rating || 0, true, (rating) => setValue('rating', rating))}
+                  {getFieldError('rating') && <p className="text-red-500 text-sm mt-1">{getFieldError('rating')}</p>}
                 </div>
 
                 {/* Title */}
@@ -355,9 +361,9 @@ export function ProductReviews({
                   <Input
                     placeholder="Summarize your experience"
                     value={values.title || ''}
-                    onChange={(e) => handleChange('title', e.target.value)}
+                    onChange={(e) => setValue('title', e.target.value)}
                   />
-                  {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
+                  {getFieldError('title') && <p className="text-red-500 text-sm mt-1">{getFieldError('title')}</p>}
                 </div>
 
                 {/* Content */}
@@ -367,9 +373,9 @@ export function ProductReviews({
                     placeholder="Tell us about your experience with this product..."
                     rows={4}
                     value={values.content || ''}
-                    onChange={(e) => handleChange('content', e.target.value)}
+                    onChange={(e) => setValue('content', e.target.value)}
                   />
-                  {errors.content && <p className="text-red-500 text-sm mt-1">{errors.content}</p>}
+                  {getFieldError('content') && <p className="text-red-500 text-sm mt-1">{getFieldError('content')}</p>}
                 </div>
 
                 {/* Optional fields */}
@@ -379,7 +385,7 @@ export function ProductReviews({
                     <Input
                       placeholder="Great quality, fast shipping..."
                       value={values.pros || ''}
-                      onChange={(e) => handleChange('pros', e.target.value)}
+                      onChange={(e) => setValue('pros', e.target.value)}
                     />
                   </div>
                   <div>
@@ -387,7 +393,7 @@ export function ProductReviews({
                     <Input
                       placeholder="Expensive, small size..."
                       value={values.cons || ''}
-                      onChange={(e) => handleChange('cons', e.target.value)}
+                      onChange={(e) => setValue('cons', e.target.value)}
                     />
                   </div>
                 </div>
@@ -397,7 +403,7 @@ export function ProductReviews({
                   <Input
                     placeholder="Professionals, students, daily use..."
                     value={values.recommendedFor || ''}
-                    onChange={(e) => handleChange('recommendedFor', e.target.value)}
+                    onChange={(e) => setValue('recommendedFor', e.target.value)}
                   />
                 </div>
 

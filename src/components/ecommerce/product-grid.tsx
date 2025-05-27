@@ -9,7 +9,7 @@ import { useProducts } from '@/hooks/use-products';
 import { useCart } from '@/hooks/use-cart';
 import { useWishlist } from '@/hooks/use-wishlist';
 import { useToast } from '@/hooks/use-toast';
-import { Product } from '@/types';
+import { Product, ProductFilters as ProductFiltersType } from '@/types';
 import {
   Heart,
   ShoppingCart,
@@ -45,11 +45,11 @@ export function ProductGrid({
 }: ProductGridProps) {
   const [currentViewMode, setCurrentViewMode] = useState(viewMode);
   const [sortBy, setSortBy] = useState('featured');
-  const [filters, setFilters] = useState({
-    priceRange: [0, 500000] as [number, number],
-    brands: [] as string[],
+  const [filters, setFilters] = useState<ProductFiltersType>({
+    priceRange: { min: 0, max: 500000 },
+    brand: [],
     rating: 0,
-    availability: 'all' as 'all' | 'in-stock' | 'out-of-stock',
+    availability: 'all',
     discount: 0
   });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -65,8 +65,8 @@ export function ProductGrid({
     category: categoryId,
     searchTerm: searchQuery,
     limitCount: limit || 20,
-    minPrice: filters.priceRange[0],
-    maxPrice: filters.priceRange[1]
+    minPrice: filters.priceRange?.min || 0,
+    maxPrice: filters.priceRange?.max || 500000
   });
 
   const { addItem } = useCart();
@@ -232,8 +232,8 @@ export function ProductGrid({
                 Try adjusting your search or filters to find what you&apos;re looking for.
               </p>
               <Button onClick={() => setFilters({
-                priceRange: [0, 500000],
-                brands: [],
+                priceRange: { min: 0, max: 500000 },
+                brand: [],
                 rating: 0,
                 availability: 'all',
                 discount: 0

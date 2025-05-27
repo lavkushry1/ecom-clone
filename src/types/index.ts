@@ -80,6 +80,11 @@ export interface CartItem {
   selectedColor?: string
 }
 
+export interface CartItemWithId extends CartItem {
+  id: string
+  sessionId?: string
+}
+
 export interface Cart {
   id: string
   userId?: string // undefined for guest carts

@@ -295,7 +295,8 @@ export function RecentlyViewed({
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      salePrice: product.price,
+      originalPrice: product.originalPrice || product.price,
       images: [product.image],
       category: product.category,
       subcategory: '',
@@ -303,10 +304,9 @@ export function RecentlyViewed({
       description: product.description || '',
       features: [],
       specifications: {},
-      stock: 10,
-      rating: { average: product.rating, count: product.reviewCount },
+      stock: product.inStock ? 10 : 0,
+      ratings: { average: product.rating, count: product.reviewCount },
       tags: product.tags || [],
-      isFeatured: false,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
