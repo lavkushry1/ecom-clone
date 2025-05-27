@@ -11,7 +11,7 @@ import {
   limit 
 } from 'firebase/firestore';
 import { db } from '../config';
-import { Order, OrderStatus, OrderItem, ShippingAddress } from '@/types';
+import { Order, OrderStatus, OrderItem, Address } from '@/types';
 
 export class OrderService {
   private readonly ordersCollection = collection(db, 'orders');
@@ -24,7 +24,7 @@ export class OrderService {
       phone: string;
       name: string;
     };
-    shippingAddress: ShippingAddress;
+    shippingAddress: Address;
     paymentMethod: 'upi' | 'card';
     paymentDetails?: any;
     subtotal: number;
@@ -36,11 +36,15 @@ export class OrderService {
       const order: Omit<Order, 'id'> = {
         ...orderData,
         orderNumber: this.generateOrderNumber(),
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        trackingNumber: this.generateTrackingNumber(),
-        estimatedDelivery: this.calculateEstimatedDelivery(),
+        orderStatus: 'pending' as const,
+        paymentStatus: 'pending' as const,
+        billingAddress: orderData.shippingAddress, // Use shipping address as billing address by default
+        paymentMethod: {
+          type: orderData.paymentMethod === 'upi' ? 'upi' : 'credit_card',
+          details: orderData.paymentDetails || {}
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       const docRef = await addDoc(this.ordersCollection, order);
@@ -142,7 +146,7 @@ export class OrderService {
         const statusHistory = order.statusHistory || [];
         statusHistory.push({
           status,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           note: statusNote,
         });
         updateData.statusHistory = statusHistory;

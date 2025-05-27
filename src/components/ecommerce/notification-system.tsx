@@ -324,7 +324,7 @@ function NotificationItem({ notification, onMarkAsRead, onRemove, onClose }: Not
     if (!notification.read) {
       onMarkAsRead();
     }
-    if (notification.actionUrl) {
+    if (notification.actionUrl && typeof window !== 'undefined') {
       window.location.href = notification.actionUrl;
       onClose();
     }

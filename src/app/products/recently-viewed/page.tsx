@@ -258,7 +258,11 @@ export default function RecentlyViewedPage() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => window.location.reload()}
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        window.location.reload();
+                      }
+                    }}
                   >
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Refresh

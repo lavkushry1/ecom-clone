@@ -85,11 +85,21 @@ export interface CartItemWithId extends CartItem {
   sessionId?: string
 }
 
+export interface OrderItem {
+  productId: string
+  product: Product
+  quantity: number
+  price: number
+  selectedSize?: string
+  selectedColor?: string
+}
+
 export interface Cart {
   id: string
   userId?: string // undefined for guest carts
   sessionId?: string // for guest carts
   items: CartItem[]
+  totalItems: number
   totalAmount: number
   createdAt: string
   updatedAt: string
@@ -104,7 +114,7 @@ export interface Order {
     email: string
     phone: string
   }
-  items: CartItem[]
+  items: OrderItem[]
   shippingAddress: Address
   billingAddress: Address
   paymentMethod: PaymentMethod
@@ -114,6 +124,11 @@ export interface Order {
   shipping: number
   tax: number
   total: number
+  statusHistory?: Array<{
+    status: string;
+    timestamp: string;
+    note?: string;
+  }>;
   createdAt: string
   updatedAt: string
 }

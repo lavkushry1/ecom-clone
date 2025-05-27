@@ -84,7 +84,11 @@ export function SearchResultsDisplay({
       <p className="text-muted-foreground mb-6 max-w-md">
         {error || 'Failed to load search results. Please try again.'}
       </p>
-      <Button onClick={() => window.location.reload()}>
+      <Button onClick={() => {
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      }}>
         Try Again
       </Button>
     </div>

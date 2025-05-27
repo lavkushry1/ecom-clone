@@ -217,6 +217,8 @@ export function WishlistComponent({ className = '' }: WishlistComponentProps) {
   };
 
   const shareItem = (item: WishlistItem) => {
+    if (typeof window === 'undefined') return;
+    
     if (navigator.share) {
       navigator.share({
         title: item.name,

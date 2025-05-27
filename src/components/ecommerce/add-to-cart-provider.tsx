@@ -54,7 +54,9 @@ export function AddToCartProvider({ children }: AddToCartProviderProps) {
 
   const handleViewCart = () => {
     // Navigate to cart page
-    window.location.href = '/cart';
+    if (typeof window !== 'undefined') {
+      window.location.href = '/cart';
+    }
     hideToast();
   };
 

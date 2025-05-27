@@ -81,7 +81,7 @@ export default function OrderSuccessPage() {
 
   const handleShareOrder = () => {
     // Simulate sharing order details
-    if (navigator.share) {
+    if (typeof window !== 'undefined' && navigator.share) {
       navigator.share({
         title: 'Order Confirmation',
         text: `My order ${orderId} has been successfully placed!`,

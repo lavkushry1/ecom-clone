@@ -17,8 +17,8 @@ export default function DebugPage() {
         NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
       },
-      location: window.location.href,
-      userAgent: navigator.userAgent,
+      location: typeof window !== 'undefined' ? window.location.href : 'N/A',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A',
       timestamp: new Date().toISOString(),
     });
   }, []);

@@ -1,16 +1,16 @@
 import { db } from '@/lib/firebase';
 import { collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
-import { CartItem } from '@/types';
+import { CartItem, CartItemWithId } from '@/types';
 
 // Cart Actions
-export async function getCartItems(sessionId: string) {
+export async function getCartItems(sessionId: string): Promise<CartItemWithId[]> {
   try {
     const q = query(collection(db, 'cart'), where('sessionId', '==', sessionId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ 
       id: doc.id, 
       ...doc.data() 
-    })) as CartItem[];
+    })) as CartItemWithId[];
   } catch (error) {
     console.error('Error fetching cart items:', error);
     throw new Error('Failed to fetch cart items');
@@ -77,7 +77,7 @@ export async function clearCart(sessionId: string) {
 }
 
 // Local storage fallback functions
-export function getCartFromLocalStorage(sessionId: string): CartItem[] {
+export function getCartFromLocalStorage(sessionId: string): CartItemWithId[] {
   try {
     const cartData = localStorage.getItem(`cart_${sessionId}`);
     return cartData ? JSON.parse(cartData) : [];
@@ -87,7 +87,7 @@ export function getCartFromLocalStorage(sessionId: string): CartItem[] {
   }
 }
 
-export function saveCartToLocalStorage(sessionId: string, items: CartItem[]) {
+export function saveCartToLocalStorage(sessionId: string, items: CartItemWithId[]) {
   try {
     localStorage.setItem(`cart_${sessionId}`, JSON.stringify(items));
   } catch (error) {
@@ -109,7 +109,9 @@ export function syncCartWithFirestore(sessionId: string) {
         if (existingItem) {
           await updateCartItemQuantity(existingItem.id, localItem.quantity);
         } else {
-          await addToCart(sessionId, localItem);
+          // Remove id before adding to cart since addToCart expects CartItem without id
+          const { id, sessionId: _, ...itemWithoutId } = localItem;
+          await addToCart(sessionId, itemWithoutId);
         }
       }
       

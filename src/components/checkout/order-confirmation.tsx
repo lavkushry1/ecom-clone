@@ -127,6 +127,8 @@ export function OrderConfirmation({ orderData, className = '' }: OrderConfirmati
   };
 
   const handleShareOrder = () => {
+    if (typeof window === 'undefined') return;
+    
     if (navigator.share) {
       navigator.share({
         title: `Order ${orderData.orderNumber} Confirmed`,
