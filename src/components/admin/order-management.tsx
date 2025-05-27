@@ -111,10 +111,10 @@ const OrderManagement: React.FC = () => {
   const filteredOrders = orders.filter(order => {
     const matchesSearch = searchTerm === '' || 
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.deliveryAddress.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.deliveryAddress.email.toLowerCase().includes(searchTerm.toLowerCase());
+      order.customerInfo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerInfo.email.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === '' || order.status === statusFilter;
+    const matchesStatus = statusFilter === '' || order.orderStatus === statusFilter;
     
     return matchesSearch && matchesStatus;
   });

@@ -99,8 +99,8 @@ export default function CartPage() {
                     {/* Product Image */}
                     <div className="w-24 h-24 bg-white rounded-lg overflow-hidden flex-shrink-0">
                       <Image
-                        src={item.image}
-                        alt={item.name}
+                        src={item.product.images?.[0] || '/images/placeholder.jpg'}
+                        alt={item.product.name}
                         width={96}
                         height={96}
                         className="w-full h-full object-contain"
@@ -111,7 +111,7 @@ export default function CartPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-gray-900 truncate">
-                          {item.name}
+                          {item.product.name}
                         </h3>
                         <Button
                           variant="ghost"
@@ -127,11 +127,11 @@ export default function CartPage() {
                         {/* Price */}
                         <div className="flex items-center gap-2">
                           <span className="text-lg font-bold text-gray-900">
-                            ₹{item.price.toLocaleString()}
+                            ₹{item.product.salePrice.toLocaleString()}
                           </span>
-                          {item.originalPrice && (
+                          {item.product.originalPrice && item.product.originalPrice > item.product.salePrice && (
                             <span className="text-sm text-gray-500 line-through">
-                              ₹{item.originalPrice.toLocaleString()}
+                              ₹{item.product.originalPrice.toLocaleString()}
                             </span>
                           )}
                         </div>
@@ -166,7 +166,7 @@ export default function CartPage() {
                       {/* Subtotal */}
                       <div className="mt-2 text-right">
                         <span className="text-sm text-gray-600">
-                          Subtotal: ₹{(item.price * item.quantity).toLocaleString()}
+                          Subtotal: ₹{(item.product.salePrice * item.quantity).toLocaleString()}
                         </span>
                       </div>
                     </div>

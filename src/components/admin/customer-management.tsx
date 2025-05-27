@@ -314,11 +314,11 @@ export function CustomerManagement({ className }: CustomerManagementProps) {
   if (loading) {
     return (
       <div className={`space-y-6 ${className}`}>
-        <AdvancedSkeleton
-          type="table"
-          rows={5}
-          className="h-96"
-        />
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <AdvancedSkeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
       </div>
     );
   }

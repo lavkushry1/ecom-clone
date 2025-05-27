@@ -27,6 +27,7 @@ interface Category {
   seoTitle?: string;
   seoDescription?: string;
   sortOrder: number;
+  level?: number; // Added for hierarchical display
 }
 
 interface CategoryFormData {
@@ -195,7 +196,7 @@ const CategoryManagement: React.FC = () => {
     category.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getCategoryHierarchy = (categories: Category[]) => {
+  const getCategoryHierarchy = (categories: Category[]): Category[] => {
     const rootCategories = categories.filter(cat => !cat.parentId);
     const buildHierarchy = (parentId?: string, level = 0): Category[] => {
       const children = categories.filter(cat => cat.parentId === parentId);

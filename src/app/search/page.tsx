@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Filter, SlidersHorizontal, ArrowLeft } from 'lucide-react';
-import type { Product } from '@/lib/firebase-services';
+import type { Product } from '@/types';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -41,20 +41,20 @@ export default function SearchPage() {
       }
       
       results = results.filter(product => {
-        const price = product.salePrice || product.price;
+        const price = product.salePrice || product.originalPrice;
         return price >= priceRange.min && price <= priceRange.max;
       });
       
       // Apply sorting
       switch (sortBy) {
         case 'price_low':
-          results.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
+          results.sort((a, b) => (a.salePrice || a.originalPrice) - (b.salePrice || b.originalPrice));
           break;
         case 'price_high':
-          results.sort((a, b) => (b.salePrice || b.price) - (a.salePrice || a.price));
+          results.sort((a, b) => (b.salePrice || b.originalPrice) - (a.salePrice || a.originalPrice));
           break;
         case 'rating':
-          results.sort((a, b) => b.rating - a.rating);
+          results.sort((a, b) => b.ratings.average - a.ratings.average);
           break;
         default:
           // Keep relevance order from search

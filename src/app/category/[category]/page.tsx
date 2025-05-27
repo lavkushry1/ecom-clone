@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ProductService, CategoryService } from '@/lib/firebase-services';
 import { ProductCard } from '@/components/ecommerce/product-card';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, SlidersHorizontal } from 'lucide-react';
-import type { Product } from '@/lib/firebase-services';
+import type { Product } from '@/types';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -23,11 +23,7 @@ export default function CategoryPage() {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadCategoryData();
-  }, [categoryId, sortBy, priceRange, selectedSubcategories]);
-
-  const loadCategoryData = async () => {
+  const loadCategoryData = useCallback(async () => {
     setLoading(true);
     try {
       // Get category info
@@ -45,20 +41,20 @@ export default function CategoryPage() {
       }
       
       categoryProducts = categoryProducts.filter(product => {
-        const price = product.salePrice || product.price;
+        const price = product.salePrice || product.originalPrice;
         return price >= priceRange.min && price <= priceRange.max;
       });
       
       // Apply sorting
       switch (sortBy) {
         case 'price_low':
-          categoryProducts.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
+          categoryProducts.sort((a, b) => (a.salePrice || a.originalPrice) - (b.salePrice || b.originalPrice));
           break;
         case 'price_high':
-          categoryProducts.sort((a, b) => (b.salePrice || b.price) - (a.salePrice || a.price));
+          categoryProducts.sort((a, b) => (b.salePrice || b.originalPrice) - (a.salePrice || a.originalPrice));
           break;
         case 'rating':
-          categoryProducts.sort((a, b) => b.rating - a.rating);
+          categoryProducts.sort((a, b) => b.ratings.average - a.ratings.average);
           break;
         default:
           categoryProducts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -71,7 +67,11 @@ export default function CategoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [categoryId, sortBy, priceRange, selectedSubcategories]);
+
+  useEffect(() => {
+    loadCategoryData();
+  }, [loadCategoryData]);
 
   const toggleSubcategory = (subcategory: string) => {
     setSelectedSubcategories(prev => 
@@ -82,7 +82,7 @@ export default function CategoryPage() {
   };
 
   // Get unique subcategories from products
-  const availableSubcategories = [...new Set(products.map(p => p.subcategory).filter(Boolean))];
+  const availableSubcategories = Array.from(new Set(products.map(p => p.subcategory).filter((sub): sub is string => Boolean(sub))));
 
   return (
     <div className="min-h-screen bg-gray-50">

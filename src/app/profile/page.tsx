@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, User, Package, MapPin, Settings, Edit2, Save, X } from 'lucide-react';
-import { Order } from '@/lib/firebase-services';
+import { Order } from '@/types';
 import { useRouter } from 'next/navigation';
 
 interface Address {
@@ -332,27 +332,24 @@ export default function ProfilePage() {
                           <div>
                             <h3 className="font-semibold">Order #{order.id.slice(-8)}</h3>
                             <p className="text-sm text-gray-600">
-                              Placed on {formatDate(order.createdAt)}
+                              Placed on {formatDate(new Date(order.createdAt))}
                             </p>
                           </div>
                           <div className="text-right">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColor(order.orderStatus)}`}>
                               {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
                             </span>
-                            <p className="text-lg font-semibold mt-1">₹{order.totalAmount.toLocaleString()}</p>
+                            <p className="text-lg font-semibold mt-1">₹{order.total.toLocaleString()}</p>
                           </div>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
                             <p className="font-medium">Items: {order.items.length}</p>
-                            <p>Payment: {order.paymentMethod === 'upi' ? 'UPI' : 'Credit Card'}</p>
+                            <p>Payment: {order.paymentMethod.type === 'upi' ? 'UPI' : 'Credit Card'}</p>
                           </div>
                           <div>
                             <p>Status: {order.paymentStatus}</p>
-                            {order.trackingNumber && (
-                              <p>Tracking: {order.trackingNumber}</p>
-                            )}
                           </div>
                         </div>
                         

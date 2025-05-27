@@ -19,57 +19,57 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import type { Product, Order } from '@/types';
 
-// Product Types
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  salePrice?: number;
-  images: string[];
-  category: string;
-  subcategory?: string;
-  brand: string;
-  stock: number;
-  rating: number;
-  reviews: number;
-  tags: string[];
-  specifications: Record<string, string>;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Order Types
-export interface OrderItem {
-  productId: string;
-  product: Product;
-  quantity: number;
-  price: number;
-}
-
-export interface Order {
-  id: string;
-  userId?: string; // Optional for guest checkout
-  items: OrderItem[];
-  totalAmount: number;
-  shippingAddress: {
-    name: string;
-    street: string;
-    city: string;
-    state: string;
-    pincode: string;
-    phoneNumber: string;
+// Helper function to transform Firebase data to Product type
+const transformProductData = (doc: any): Product => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    name: data.name || '',
+    description: data.description || '',
+    category: data.category || '',
+    subcategory: data.subcategory || '',
+    brand: data.brand || '',
+    images: data.images || [],
+    originalPrice: data.price || data.originalPrice || 0,
+    salePrice: data.salePrice || data.price || 0,
+    stock: data.stock || 0,
+    specifications: data.specifications || {},
+    ratings: {
+      average: data.rating || data.ratings?.average || 0,
+      count: data.reviews || data.ratings?.count || 0
+    },
+    tags: data.tags || [],
+    features: data.features,
+    isActive: data.isActive !== false,
+    createdAt: data.createdAt?.toDate?.()?.toISOString?.() || data.createdAt || new Date().toISOString(),
+    updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || data.updatedAt || new Date().toISOString(),
   };
-  paymentMethod: 'upi' | 'credit_card';
-  paymentStatus: 'pending' | 'completed' | 'failed';
-  orderStatus: 'placed' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
-  trackingNumber?: string;
-  estimatedDelivery?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
+};
+
+// Helper function to transform Firebase data to Order type
+const transformOrderData = (doc: any): Order => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    orderNumber: data.orderNumber || '',
+    userId: data.userId,
+    customerInfo: data.customerInfo || { name: '', email: '', phone: '' },
+    items: data.items || [],
+    shippingAddress: data.shippingAddress || {},
+    billingAddress: data.billingAddress || {},
+    paymentMethod: data.paymentMethod || { type: 'cod', details: {} },
+    paymentStatus: data.paymentStatus || 'pending',
+    orderStatus: data.orderStatus || 'pending',
+    subtotal: data.subtotal || 0,
+    shipping: data.shipping || 0,
+    tax: data.tax || 0,
+    total: data.total || 0,
+    createdAt: data.createdAt?.toDate?.()?.toISOString?.() || data.createdAt || new Date().toISOString(),
+    updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || data.updatedAt || new Date().toISOString(),
+  };
+};
 
 // Product Services
 export class ProductService {
@@ -88,12 +88,7 @@ export class ProductService {
     }
 
     const snapshot = await getDocs(q);
-    const products = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-    })) as Product[];
+    const products = snapshot.docs.map(doc => transformProductData(doc));
 
     return {
       products,
@@ -105,12 +100,7 @@ export class ProductService {
   static async getProductById(id: string): Promise<Product | null> {
     const docSnap = await getDoc(doc(db, this.collectionName, id));
     if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        ...docSnap.data(),
-        createdAt: docSnap.data().createdAt?.toDate(),
-        updatedAt: docSnap.data().updatedAt?.toDate(),
-      } as Product;
+      return transformProductData(docSnap);
     }
     return null;
   }
@@ -125,12 +115,7 @@ export class ProductService {
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-    })) as Product[];
+    return snapshot.docs.map(doc => transformProductData(doc));
   }
 
   static async searchProducts(searchTerm: string, limitCount = 20) {
@@ -143,12 +128,7 @@ export class ProductService {
     );
 
     const snapshot = await getDocs(q);
-    const products = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-    })) as Product[];
+    const products = snapshot.docs.map(doc => transformProductData(doc));
 
     // Client-side filtering (for demo purposes)
     return products.filter(product => 
@@ -219,13 +199,7 @@ export class OrderService {
   static async getOrderById(id: string): Promise<Order | null> {
     const docSnap = await getDoc(doc(db, this.collectionName, id));
     if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        ...docSnap.data(),
-        createdAt: docSnap.data().createdAt?.toDate(),
-        updatedAt: docSnap.data().updatedAt?.toDate(),
-        estimatedDelivery: docSnap.data().estimatedDelivery?.toDate(),
-      } as Order;
+      return transformOrderData(docSnap);
     }
     return null;
   }
@@ -238,13 +212,7 @@ export class OrderService {
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-      estimatedDelivery: doc.data().estimatedDelivery?.toDate(),
-    })) as Order[];
+    return snapshot.docs.map(doc => transformOrderData(doc));
   }
 
   static async getAllOrders(): Promise<Order[]> {
@@ -254,13 +222,7 @@ export class OrderService {
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      updatedAt: doc.data().updatedAt?.toDate(),
-      estimatedDelivery: doc.data().estimatedDelivery?.toDate(),
-    })) as Order[];
+    return snapshot.docs.map(doc => transformOrderData(doc));
   }
 
   static async updateOrderStatus(
@@ -306,6 +268,22 @@ export class CategoryService {
       ...doc.data(),
     }));
   }
+
+  static async getCategoryById(id: string) {
+    try {
+      const docSnap = await getDoc(doc(db, this.collectionName, id));
+      if (docSnap.exists()) {
+        return {
+          id: docSnap.id,
+          ...docSnap.data(),
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching category:', error);
+      throw new Error('Failed to fetch category');
+    }
+  }
 }
 
 // Analytics Service
@@ -323,9 +301,9 @@ export class AnalyticsService {
     const totalOrders = orders.length;
     const totalRevenue = orders
       .filter(o => o.paymentStatus === 'completed')
-      .reduce((sum, o) => sum + o.totalAmount, 0);
+      .reduce((sum, o) => sum + o.total, 0);
     
-    const pendingOrders = orders.filter(o => o.orderStatus === 'placed').length;
+    const pendingOrders = orders.filter(o => o.orderStatus === 'pending').length;
 
     return {
       totalProducts,

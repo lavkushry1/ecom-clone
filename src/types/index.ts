@@ -106,7 +106,7 @@ export interface Order {
   billingAddress: Address
   paymentMethod: PaymentMethod
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded'
-  orderStatus: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
+  orderStatus: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
   subtotal: number
   shipping: number
   tax: number
@@ -246,4 +246,55 @@ export interface CreditCardData {
   orderId: string
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+
+// Additional missing types
+export interface ProductCategory {
+  id: string
+  name: string
+  description?: string
+  parentId?: string
+  slug: string
+  imageUrl?: string
+  isActive: boolean
+  sortOrder: number
+  productCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OrderItem {
+  productId: string
+  product: Product
+  quantity: number
+  price: number
+  total: number
+  selectedSize?: string
+  selectedColor?: string
+}
+
+export interface ShippingAddress {
+  name: string
+  phone: string
+  addressLine1: string
+  addressLine2?: string
+  city: string
+  state: string
+  pincode: string
+  country?: string
+}
+
+export interface UpsellProduct {
+  id: string
+  name: string
+  description: string
+  originalPrice: number
+  salePrice: number
+  images: string[]
+  ratings: {
+    average: number
+    count: number
+  }
+  category: string
+  isActive: boolean
+}
