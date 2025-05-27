@@ -11,6 +11,28 @@ export interface User {
   updatedAt: string
 }
 
+export interface UserProfile {
+  id: string
+  displayName?: string
+  email?: string
+  phone?: string
+  avatar?: string
+  dateOfBirth?: string
+  gender?: 'male' | 'female' | 'other'
+  preferences?: {
+    language: string
+    currency: string
+    notifications: {
+      email: boolean
+      sms: boolean
+      push: boolean
+    }
+  }
+  lastActiveAt?: any
+  createdAt?: any
+  updatedAt?: any
+}
+
 export interface Address {
   id: string
   type: 'home' | 'work' | 'other'
@@ -22,6 +44,9 @@ export interface Address {
   state: string
   pincode: string
   isDefault: boolean
+  userId?: string
+  createdAt?: any
+  updatedAt?: any
 }
 
 export interface Product {
@@ -199,3 +224,23 @@ export interface SearchParams {
   limit?: number
   filters?: ProductFilters
 }
+
+// Payment specific types
+export interface UPIPaymentData {
+  upiId: string
+  amount: number
+  orderId: string
+  merchantTransactionId?: string
+}
+
+export interface CreditCardData {
+  cardNumber: string
+  expiryMonth: string
+  expiryYear: string
+  cvv: string
+  cardholderName: string
+  amount: number
+  orderId: string
+}
+
+export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'

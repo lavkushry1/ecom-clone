@@ -3,29 +3,33 @@ description: TypeScript type definitions for Next.js + Firebase e-commerce
 globs: "**/types/**"
 alwaysApply: false
 ---
+# TypeScript Type Definitions for E-commerce with Firebase
 
-# TypeScript Types for E-commerce
+This document provides a comprehensive set of TypeScript type definitions for a Next.js e-commerce application using Firebase.
 
-## 1. Firebase Document Types
+## 1. Core Firebase Document Types
+
+These types correspond to the structure of documents in your Firestore collections.
 
 ```typescript
-// types/firebase.ts
-import { Timestamp } from 'firebase/firestore';
+// src/types/firebase.ts (or a more specific path like src/types/firestore.ts)
+import { Timestamp } from 'firebase/firestore'; // Client SDK Timestamp
+// For Admin SDK types, you might use: import { Timestamp } from 'firebase-admin/firestore';
 
 export interface Product {
-  id: string;
+  id: string; // Document ID from Firestore
   name: string;
   description: string;
-  price: number;
-  originalPrice?: number;
-  images: string[];
-  category: string;
-  categoryName?: string;
+  price: number; // Current selling price
+  originalPrice?: number; // Optional: Price before discount
+  images: string[]; // URLs to images in Firebase Storage
+  category: string; // Category ID or slug
+  categoryName?: string; // Denormalized category name for display
   stock: number;
-  featured: boolean;
-  tags: string[];
-  sku?: string;
-  weight?: number;
+  featured?: boolean;
+  tags?: string[];
+  sku?: string; // Stock Keeping Unit
+  weight?: number; // For shipping calculations
   dimensions?: {
     length: number;
     width: number;
@@ -34,7 +38,12 @@ export interface Product {
   ratings?: {
     average: number;
     count: number;
-  };
+  }; // Aggregated ratings
+  // variants?: ProductVariant[]; // If you have product variants
+  brand?: string;
+  status?: 'active' | 'inactive' | 'archived'; // Product status
+  seoTitle?: string;
+  seoDescription?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -42,79 +51,89 @@ export interface Product {
 export interface Category {
   id: string;
   name: string;
-  slug: string;
+  slug: string; // URL-friendly identifier
   description?: string;
-  image?: string;
-  parentId?: string;
-  children?: Category[];
-  productCount?: number;
+  image?: string; // URL to category image
+  parentId?: string | null; // For subcategories
+  // children?: Category[]; // Usually fetched separately or IDs stored
+  productCount?: number; // Denormalized count of products in this category
+  order?: number; // For custom sorting of categories
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 export interface CartItem {
   productId: string;
-  name: string;
-  price: number;
+  name: string; // Denormalized from Product
+  price: number; // Denormalized from Product (price at the time of adding to cart)
   quantity: number;
-  image?: string;
-  maxQuantity?: number;
+  image?: string; // Denormalized from Product
+  // selectedVariant?: ProductVariant; // If product has variants
+  // maxQuantity?: number; // From product stock, for validation
 }
 
 export interface Cart {
-  id?: string;
-  sessionId?: string;
-  userId?: string;
+  id?: string; // Could be userId for logged-in users, or sessionId for guests
+  sessionId?: string; // For guest carts
+  userId?: string | null; // For authenticated user carts
   items: CartItem[];
-  totalAmount: number;
-  itemCount: number;
+  totalAmount?: number; // Calculated sum of item.price * item.quantity
+  itemCount?: number; // Calculated sum of item.quantity
+  // appliedCoupon?: string;
+  // discountAmount?: number;
+  createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 export interface Address {
+  type: 'shipping' | 'billing';
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string; // May not be needed if tied to user account email
   phone: string;
-  address: string;
-  apartment?: string;
+  addressLine1: string;
+  addressLine2?: string;
   city: string;
-  state: string;
+  state: string; // Or province
   zipCode: string;
   country: string;
   isDefault?: boolean;
 }
 
-export interface OrderItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image?: string;
-  subtotal: number;
+export interface OrderItem extends CartItem {
+  // Inherits fields from CartItem
+  // Price here should be the final price paid for the item at checkout
+  subtotal: number; // quantity * price
 }
 
 export interface Order {
-  id: string;
-  orderNumber: string;
-  userId?: string;
-  sessionId?: string;
+  id: string; // Firestore document ID
+  orderNumber: string; // Human-readable order identifier
+  userId?: string | null; // If placed by a logged-in user
+  sessionId?: string; // If placed by a guest
+  customerEmail: string; // Always capture email for communication
   items: OrderItem[];
-  subtotal: number;
-  tax: number;
-  shipping: number;
-  discount: number;
-  totalAmount: number;
-  currency: string;
-  status: OrderStatus;
-  paymentMethod: PaymentMethod;
-  paymentStatus: PaymentStatus;
+  subtotalAmount: number; // Sum of all OrderItem subtotals
+  taxAmount: number;
+  shippingAmount: number;
+  discountAmount: number;
+  totalAmount: number; // Final amount paid by customer
+  currency: string; // e.g., 'INR', 'USD'
+  status: OrderStatus; // Enum defined below
+  paymentMethod: PaymentMethod; // Enum defined below
+  paymentDetails?: {
+    transactionId?: string;
+    status: PaymentStatus; // Enum defined below
+    gateway?: string; // e.g., 'stripe', 'razorpay', 'simulated'
+  };
   shippingAddress: Address;
-  billingAddress?: Address;
+  billingAddress?: Address; // Optional, might be same as shipping
   trackingNumber?: string;
-  estimatedDelivery?: Timestamp;
-  notes?: string;
-  metadata?: Record<string, any>;
+  shippingProvider?: string;
+  estimatedDeliveryDate?: Timestamp;
+  customerNotes?: string;
+  adminNotes?: string;
+  metadata?: Record<string, any>; // For any other custom data
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -122,399 +141,337 @@ export interface Order {
 export interface Review {
   id: string;
   productId: string;
-  userId?: string;
-  userName: string;
-  userEmail?: string;
-  rating: number;
+  userId: string; // Ensure reviews are tied to authenticated users
+  userName: string; // Denormalized from User
+  rating: number; // e.g., 1-5 stars
   title?: string;
   comment: string;
-  verified: boolean;
-  helpful: number;
-  images?: string[];
+  isVerifiedPurchase?: boolean;
+  // helpfulVotes?: number;
+  // images?: string[]; // URLs of images uploaded with review
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 export interface User {
-  id: string;
-  email: string;
+  id: string; // Firebase Auth UID
+  email: string | null; // From Firebase Auth
+  displayName?: string | null; // From Firebase Auth or custom
   firstName?: string;
   lastName?: string;
-  phone?: string;
-  avatar?: string;
-  addresses: Address[];
-  preferences: {
-    notifications: boolean;
-    marketing: boolean;
-    currency: string;
-    language: string;
-  };
-  orders?: string[];
-  wishlist?: string[];
-  createdAt: Timestamp;
+  phoneNumber?: string | null; // From Firebase Auth or custom
+  photoURL?: string | null; // From Firebase Auth
+  addresses?: Address[]; // Array of user's saved addresses
+  // preferences?: {
+  //   notifications?: boolean;
+  //   marketingOptIn?: boolean;
+  //   defaultCurrency?: string;
+  //   language?: string;
+  // };
+  roles?: UserRole[]; // Enum defined below, e.g., ['customer', 'admin']
+  // orderHistoryIds?: string[]; // IDs of orders placed by the user
+  // wishlistProductIds?: string[];
+  lastLoginAt?: Timestamp;
+  createdAt: Timestamp; // User account creation timestamp
   updatedAt: Timestamp;
 }
 
-export interface StoreSettings {
-  id: 'store';
+// For site-wide configurations, often stored in a single document
+export interface SiteSettings {
+  id: 'global'; // Typically a fixed ID for the settings document
   storeName: string;
-  storeDescription?: string;
   storeEmail: string;
-  storePhone: string;
-  storeAddress?: Address;
-  currency: string;
-  taxRate: number;
-  shippingRate: number;
-  freeShippingThreshold: number;
-  upiId: string;
-  paymentMethods: PaymentMethod[];
-  businessHours?: {
-    [key: string]: {
-      open: string;
-      close: string;
-      closed: boolean;
-    };
+  storePhoneNumber?: string;
+  defaultCurrency: string; // e.g., 'INR'
+  defaultCountry: string; // e.g., 'IN'
+  taxSettings?: {
+    defaultRate?: number; // e.g., 0.18 for 18%
+    // regionSpecificRates?: { [region: string]: number };
   };
-  socialMedia?: {
-    facebook?: string;
-    instagram?: string;
-    twitter?: string;
-    youtube?: string;
+  shippingSettings?: {
+    defaultFlatRate?: number;
+    freeShippingThreshold?: number;
+    // availableCountries?: string[];
   };
-  seo?: {
-    title: string;
-    description: string;
-    keywords: string[];
+  paymentGatewayConfig?: {
+    upiId?: string; // For UPI payments
+    // Add other gateway keys here, but ensure sensitive keys are NOT stored here.
+    // Sensitive keys should be in environment variables and used server-side.
   };
-  createdAt: Timestamp;
+  // socialMediaLinks?: { [platform: string]: string };
+  // seoDefaults?: { siteTitle: string; siteDescription: string };
+  maintenanceMode?: boolean;
   updatedAt: Timestamp;
 }
+
 ```
 
 ## 2. Enum Types
 
+Enums help maintain consistency for fields with a predefined set of values.
+
 ```typescript
-// types/enums.ts
+// src/types/enums.ts
+
 export enum OrderStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  PROCESSING = 'processing',
-  SHIPPED = 'shipped',
+  PENDING = 'pending',           // Order placed, awaiting payment or confirmation
+  AWAITING_PAYMENT = 'awaiting_payment',
+  CONFIRMED = 'confirmed',         // Payment received, order confirmed
+  PROCESSING = 'processing',       // Order is being prepared for shipment
+  SHIPPED = 'shipped',             // Order has been shipped
   OUT_FOR_DELIVERY = 'out_for_delivery',
-  DELIVERED = 'delivered',
-  CANCELLED = 'cancelled',
-  REFUNDED = 'refunded',
-  RETURNED = 'returned'
+  DELIVERED = 'delivered',         // Order has been delivered
+  CANCELLED = 'cancelled',         // Order was cancelled (by user or admin)
+  REFUNDED = 'refunded',           // Order was refunded
+  PARTIALLY_REFUNDED = 'partially_refunded',
+  FAILED = 'failed',               // Order placement or payment failed
+  // RETURN_REQUESTED = 'return_requested',
+  // RETURN_APPROVED = 'return_approved',
+  // RETURNED = 'returned',
 }
 
 export enum PaymentMethod {
   UPI = 'upi',
   CARD = 'card',
-  WALLET = 'wallet',
-  COD = 'cod',
-  NET_BANKING = 'net_banking'
+  // WALLET = 'wallet',
+  // COD = 'cod', // Cash on Delivery
+  // NET_BANKING = 'net_banking',
+  SIMULATED = 'simulated', // For testing/demo purposes
 }
 
 export enum PaymentStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
-  REFUNDED = 'refunded'
+  PENDING = 'pending',        // Awaiting payment initiation or confirmation
+  PROCESSING = 'processing',  // Payment is being processed by the gateway
+  COMPLETED = 'completed',      // Payment was successful
+  FAILED = 'failed',          // Payment failed
+  CANCELLED = 'cancelled',      // Payment was cancelled by the user
+  REFUNDED = 'refunded',        // Payment was refunded
+  // PARTIALLY_REFUNDED = 'partially_refunded',
+  // REQUIRES_ACTION = 'requires_action', // e.g., 3D Secure
 }
 
-export enum ProductStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  OUT_OF_STOCK = 'out_of_stock',
-  DISCONTINUED = 'discontinued'
-}
+// export enum ProductStatus {
+//   ACTIVE = 'active',
+//   INACTIVE = 'inactive',
+//   OUT_OF_STOCK = 'out_of_stock',
+//   ARCHIVED = 'archived',
+// }
 
 export enum UserRole {
   ADMIN = 'admin',
-  MANAGER = 'manager',
   CUSTOMER = 'customer',
-  GUEST = 'guest'
+  GUEST = 'guest', // May not be stored as a role, but useful for logic
+  // EDITOR = 'editor',
+  // MANAGER = 'manager',
 }
 ```
 
-## 3. API Response Types
+## 3. API Request/Response Types (Illustrative)
+
+These types can be used for structuring data sent to and received from Next.js API Routes or Server Actions, especially if they don't directly return Firestore documents.
 
 ```typescript
-// types/api.ts
+// src/types/api.ts
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
-  error?: string;
-  errors?: Record<string, string[]>;
-  message?: string;
-  meta?: {
-    page?: number;
-    limit?: number;
-    total?: number;
-    totalPages?: number;
-  };
+  message?: string; // For success or general info messages
+  error?: string; // For general error messages
+  errors?: Record<string, string[]>; // For field-specific validation errors from Zod
+  // pagination?: PaginationMeta;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-}
+// export interface PaginationMeta {
+//   currentPage: number;
+//   pageSize: number;
+//   totalItems: number;
+//   totalPages: number;
+//   hasNextPage: boolean;
+//   hasPreviousPage: boolean;
+// }
 
-export interface SearchResponse<T> {
-  data: T[];
-  query: string;
-  filters: Record<string, any>;
-  facets?: Record<string, any>;
-  suggestions?: string[];
-}
+// Example: Request body for creating an order
+// export interface CreateOrderRequest {
+//   cartId: string;
+//   shippingAddress: Address;
+//   paymentMethod: PaymentMethod;
+//   customerNotes?: string;
+// }
+
+// Example: Response for a successful order creation
+// export interface CreateOrderResponse {
+//   orderId: string;
+//   orderNumber: string;
+//   estimatedDeliveryDate?: string; // ISO string
+// }
 ```
 
-## 4. Form Types
+## 4. Form Data & Validation Schema Types (using Zod)
+
+Types derived from Zod schemas are excellent for form handling with React Hook Form.
 
 ```typescript
-// types/forms.ts
+// src/types/forms.ts (or collocated with validation schemas, e.g., src/lib/validations/schemas.ts)
 import { z } from 'zod';
 
-// Product Form Schema
-export const productFormSchema = z.object({
-  name: z.string().min(1, 'Product name is required'),
-  description: z.string().min(1, 'Description is required'),
-  price: z.number().min(0, 'Price must be positive'),
-  originalPrice: z.number().optional(),
-  category: z.string().min(1, 'Category is required'),
-  stock: z.number().min(0, 'Stock must be positive'),
-  featured: z.boolean().default(false),
-  tags: z.array(z.string()).default([]),
-  images: z.array(z.string()).min(1, 'At least one image is required'),
-  sku: z.string().optional(),
-  weight: z.number().optional(),
-  dimensions: z.object({
-    length: z.number(),
-    width: z.number(),
-    height: z.number(),
-  }).optional(),
-});
-
-export type ProductFormData = z.infer<typeof productFormSchema>;
-
-// Address Form Schema
-export const addressFormSchema = z.object({
+// Example: Checkout Form Schema (combining shipping and payment)
+export const shippingAddressSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  address: z.string().min(1, 'Address is required'),
-  apartment: z.string().optional(),
+  addressLine1: z.string().min(1, 'Address is required'),
+  addressLine2: z.string().optional(),
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
-  zipCode: z.string().min(5, 'ZIP code must be at least 5 digits'),
-  country: z.string().default('India'),
+  zipCode: z.string().min(5, 'ZIP code must be at least 5 characters'),
+  country: z.string().min(1, 'Country is required'),
 });
+export type ShippingAddressFormData = z.infer<typeof shippingAddressSchema>;
 
-export type AddressFormData = z.infer<typeof addressFormSchema>;
-
-// Card Payment Schema
-export const cardPaymentSchema = z.object({
-  cardNumber: z.string()
-    .min(16, 'Card number must be 16 digits')
-    .max(19, 'Card number is too long')
-    .regex(/^[\d\s]+$/, 'Card number must contain only digits'),
-  expiryDate: z.string()
-    .regex(/^\d{2}\/\d{2}$/, 'Expiry date must be in MM/YY format'),
-  cvv: z.string()
-    .min(3, 'CVV must be at least 3 digits')
-    .max(4, 'CVV must be at most 4 digits'),
-  cardholderName: z.string()
-    .min(1, 'Cardholder name is required')
-    .regex(/^[a-zA-Z\s]+$/, 'Cardholder name must contain only letters'),
+export const creditCardSchema = z.object({
+  cardNumber: z.string().min(13, 'Invalid card number').max(19, 'Invalid card number'),
+  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/, 'Invalid expiry date (MM/YY)'),
+  cvv: z.string().min(3, 'Invalid CVV').max(4, 'Invalid CVV'),
+  cardHolderName: z.string().min(1, 'Cardholder name is required'),
 });
+export type CreditCardFormData = z.infer<typeof creditCardSchema>;
 
-export type CardPaymentData = z.infer<typeof cardPaymentSchema>;
+// Combined Checkout Form Schema Example
+// export const checkoutFormSchema = shippingAddressSchema.extend({
+//   paymentMethod: z.nativeEnum(PaymentMethod),
+//   cardDetails: creditCardSchema.optional(), // Only required if paymentMethod is CARD
+//   // ... other checkout fields
+// }).refine(data => {
+//   if (data.paymentMethod === PaymentMethod.CARD) {
+//     return !!data.cardDetails; // Card details are required if payment method is card
+//   }
+//   return true;
+// }, {
+//   message: "Card details are required for card payment",
+//   path: ["cardDetails"],
+// });
+// export type CheckoutFormData = z.infer<typeof checkoutFormSchema>;
 
-// Order Form Schema
-export const orderFormSchema = z.object({
-  items: z.array(z.object({
-    productId: z.string(),
-    quantity: z.number().min(1),
-  })),
-  shippingAddress: addressFormSchema,
-  billingAddress: addressFormSchema.optional(),
-  paymentMethod: z.enum(['upi', 'card', 'cod']),
-  notes: z.string().optional(),
+// Admin Product Form Schema
+export const productFormSchema = z.object({
+  name: z.string().min(3, 'Product name is too short'),
+  description: z.string().min(10, 'Description is too short'),
+  price: z.number({ invalid_type_error: 'Price must be a number' }).positive('Price must be positive'),
+  originalPrice: z.number().positive('Original price must be positive').optional(),
+  stock: z.number().int().min(0, 'Stock cannot be negative'),
+  category: z.string().min(1, 'Category is required'),
+  // images: z.array(z.string().url()).min(1, 'At least one image URL is required'), // For URLs
+  // For file uploads, Zod validation is more complex and often handled differently.
+  // tags: z.array(z.string()).optional(),
+  // featured: z.boolean().optional(),
 });
+export type ProductFormData = z.infer<typeof productFormSchema>;
 
-export type OrderFormData = z.infer<typeof orderFormSchema>;
 ```
 
-## 5. Component Props Types
+## 5. Component Prop Types (Illustrative)
+
+Define props for your reusable components.
 
 ```typescript
-// types/components.ts
+// src/types/components.ts
 import { ReactNode } from 'react';
+import { Product, CartItem as CartItemType, Order as OrderType, Address as AddressType, PaymentMethod as PaymentMethodEnum } from './firebase'; // Assuming firebase types are in firebase.ts
+import { ShippingAddressFormData } from './forms';
 
-export interface BaseComponentProps {
+export interface BaseProps {
   className?: string;
   children?: ReactNode;
 }
 
-export interface ProductCardProps extends BaseComponentProps {
+export interface ProductCardProps extends BaseProps {
   product: Product;
-  onAddToCart?: (productId: string) => void;
-  onToggleWishlist?: (productId: string) => void;
-  isInWishlist?: boolean;
-  showQuickView?: boolean;
+  onAddToCart?: (productId: string, quantity: number) => void;
+  // onToggleWishlist?: (productId: string) => void;
+  // isInWishlist?: boolean;
 }
 
-export interface CartItemProps extends BaseComponentProps {
-  item: CartItem;
-  onUpdateQuantity: (productId: string, quantity: number) => void;
-  onRemove: (productId: string) => void;
-  readonly?: boolean;
+export interface CartItemProps extends BaseProps {
+  item: CartItemType;
+  onUpdateQuantity: (productId: string, newQuantity: number) => void;
+  onRemoveItem: (productId: string) => void;
 }
 
-export interface PaymentMethodProps extends BaseComponentProps {
-  selected: PaymentMethod;
-  onSelect: (method: PaymentMethod) => void;
-  availableMethods: PaymentMethod[];
+export interface OrderSummaryProps extends BaseProps {
+  order: OrderType; // Or a simplified version for display
 }
 
-export interface AddressFormProps extends BaseComponentProps {
-  onSubmit: (data: AddressFormData) => void;
-  initialData?: Partial<AddressFormData>;
-  loading?: boolean;
-  submitText?: string;
+export interface AddressDisplayProps extends BaseProps {
+  address: AddressType;
 }
 
-export interface OrderSummaryProps extends BaseComponentProps {
-  items: CartItem[];
-  subtotal: number;
-  tax: number;
-  shipping: number;
-  discount: number;
-  total: number;
-  currency?: string;
+export interface PaymentMethodSelectorProps extends BaseProps {
+  availableMethods: PaymentMethodEnum[];
+  selectedMethod: PaymentMethodEnum | null;
+  onSelectMethod: (method: PaymentMethodEnum) => void;
 }
+
+export interface CheckoutStepProps {
+  onNext?: () => void;
+  onPrevious?: () => void;
+  // Other common props for checkout steps
+}
+
+export interface AddressFormProps extends CheckoutStepProps {
+  onSubmit: (data: ShippingAddressFormData) => void;
+  initialData?: Partial<ShippingAddressFormData>;
+  submitButtonText?: string;
+  isLoading?: boolean;
+}
+
 ```
 
-## 6. Hook Types
+## 6. Custom Hook Return Types
+
+Define the shape of the data and functions returned by your custom hooks.
 
 ```typescript
-// types/hooks.ts
-export interface UseCartReturn {
-  items: CartItem[];
-  itemCount: number;
-  totalAmount: number;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
-  clearCart: () => Promise<void>;
+// src/types/hooks.ts
+import { Product as ProductType, Cart as CartType, Order as OrderType } from './firebase';
+
+export interface UseAuthReturn {
+  user: User | null; // Your User type from firebase.ts
   loading: boolean;
-  error: string | null;
+  error: Error | null;
+  // signInWithGoogle: () => Promise<any>;
+  // signOut: () => Promise<void>;
+}
+
+export interface UseCartReturn {
+  cart: CartType | null;
+  loading: boolean;
+  error: Error | null;
+  addToCart: (productId: string, quantity: number) => Promise<void>;
+  updateItemQuantity: (productId: string, newQuantity: number) => Promise<void>;
+  removeItemFromCart: (productId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
+  // getCartTotal: () => number;
+  // getCartItemCount: () => number;
 }
 
 export interface UseProductsReturn {
-  products: Product[];
+  products: ProductType[];
   loading: boolean;
-  error: string | null;
-  hasMore: boolean;
-  loadMore: () => void;
-  refresh: () => void;
+  error: Error | null;
+  // fetchMoreProducts?: () => void;
+  // hasMore?: boolean;
+  // applyFilters?: (filters: any) => void;
 }
 
 export interface UseOrdersReturn {
-  orders: Order[];
+  orders: OrderType[];
   loading: boolean;
-  error: string | null;
-  refresh: () => void;
+  error: Error | null;
+  // fetchOrderById?: (orderId: string) => Promise<OrderType | null>;
 }
 
-export interface UseWishlistReturn {
-  wishlist: string[];
-  addToWishlist: (productId: string) => void;
-  removeFromWishlist: (productId: string) => void;
-  toggleWishlist: (productId: string) => void;
-  isInWishlist: (productId: string) => boolean;
-}
 ```
 
-## 7. Utility Types
-
-```typescript
-// types/utils.ts
-export type Nullable<T> = T | null;
-export type Optional<T> = T | undefined;
-export type ID = string;
-
-export interface PaginationParams {
-  page: number;
-  limit: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-}
-
-export interface FilterParams {
-  category?: string;
-  priceRange?: {
-    min: number;
-    max: number;
-  };
-  rating?: number;
-  featured?: boolean;
-  inStock?: boolean;
-  tags?: string[];
-}
-
-export interface SearchParams extends PaginationParams, FilterParams {
-  query?: string;
-}
-
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
-};
-
-export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = 
-  Pick<T, Exclude<keyof T, Keys>> & 
-  { [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>> }[Keys];
-```
-
-## Usage Guidelines
-
-### 1. Import Organization
-```typescript
-// Group imports by category
-import { Product, Order, CartItem } from '@/types/firebase';
-import { ApiResponse, PaginatedResponse } from '@/types/api';
-import { ProductFormData, AddressFormData } from '@/types/forms';
-```
-
-### 2. Type Guards
-```typescript
-// types/guards.ts
-export function isProduct(obj: any): obj is Product {
-  return obj && typeof obj.id === 'string' && typeof obj.name === 'string';
-}
-
-export function isOrder(obj: any): obj is Order {
-  return obj && typeof obj.id === 'string' && Array.isArray(obj.items);
-}
-```
-
-### 3. Generic Constraints
-```typescript
-// Use generic constraints for better type safety
-interface Repository<T extends { id: string }> {
-  findById(id: string): Promise<T | null>;
-  create(data: Omit<T, 'id'>): Promise<T>;
-  update(id: string, data: Partial<T>): Promise<T>;
-  delete(id: string): Promise<void>;
-}
-```
+**Note:** These types are comprehensive examples. Adjust them based on your specific e-commerce application's features and data models. Ensure that `Timestamp` types are handled correctly (client vs. admin SDK if they differ, and conversion to `Date` objects when needed for display or calculations).

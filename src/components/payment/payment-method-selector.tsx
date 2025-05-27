@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CreditCard, Smartphone, QrCode, Zap, Shield, Clock } from 'lucide-react'
-import UPIQRCode from './upi-qr-code'
-import CreditCardPayment from './credit-card-payment'
+import { UPIPayment } from './upi-payment'
+import { CreditCardPayment } from './credit-card-form'
 
 interface PaymentMethodSelectorProps {
   orderId: string
@@ -143,11 +143,11 @@ export function PaymentMethodSelector({
         </TabsList>
         
         <TabsContent value="upi" className="mt-6">
-          <UPIQRCode
+          <UPIPayment
             orderId={orderId}
             amount={amount}
-            onPaymentSuccess={handlePaymentSuccess}
-            onPaymentFailure={handlePaymentFailure}
+            onPaymentComplete={handlePaymentSuccess}
+            onPaymentCancel={() => handlePaymentFailure('Payment cancelled by user')}
           />
         </TabsContent>
         
@@ -155,8 +155,8 @@ export function PaymentMethodSelector({
           <CreditCardPayment
             orderId={orderId}
             amount={amount}
-            onPaymentSuccess={handlePaymentSuccess}
-            onPaymentFailure={handlePaymentFailure}
+            onPaymentComplete={handlePaymentSuccess}
+            onPaymentCancel={() => handlePaymentFailure('Payment cancelled by user')}
           />
         </TabsContent>
       </Tabs>

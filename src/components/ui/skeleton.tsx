@@ -307,3 +307,54 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
     </div>
   );
 }
+
+// Dashboard Stats Skeleton
+export function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="bg-white p-6 rounded-lg border">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+            <Skeleton className="h-8 w-8 rounded" />
+          </div>
+          <div className="mt-4">
+            <Skeleton className="h-3 w-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Search Results Skeleton
+export function SearchResultsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-9 w-40" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <ProductCardSkeleton key={index} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Category Skeleton
+export function CategorySkeleton() {
+  return (
+    <div className="text-center group cursor-pointer">
+      <div className="w-16 h-16 mx-auto mb-2">
+        <Skeleton className="w-full h-full rounded-full" />
+      </div>
+      <Skeleton className="h-3 w-12 mx-auto" />
+    </div>
+  );
+}

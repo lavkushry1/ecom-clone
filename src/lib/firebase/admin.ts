@@ -12,7 +12,7 @@ const adminConfig = {
 }
 
 // Initialize Firebase Admin
-const adminApp = getApps().length === 0 ? initializeApp(adminConfig, 'admin') : getApps()[0]
+const adminApp = getApps().find(app => app.name === 'admin') || initializeApp(adminConfig, 'admin')
 
 // Export Firebase Admin services
 export const adminDb = getFirestore(adminApp)

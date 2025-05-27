@@ -3,35 +3,49 @@ description: Firebase configuration and setup for Next.js e-commerce
 globs: "**/firebase/**"
 alwaysApply: false
 ---
+# Firebase Configuration & Setup Guide
 
-# Firebase Configuration
+This guide provides detailed instructions and patterns for configuring Firebase within a Next.js e-commerce application. It covers SDK initialization, security rules, data modeling, and service patterns.
 
-## 1. Firebase Project Setup
+## 1. Firebase Project Setup & Environment Variables
 
-### Environment Variables
+First, ensure you have a Firebase project created and have enabled Firestore, Firebase Authentication, and Firebase Storage.
+
+### Environment Variables (`.env.local`)
+Store your Firebase project credentials securely in environment variables. Create a `.env.local` file (and ensure it's in `.gitignore`):
+
 ```env
-# Firebase Client Config
+# Firebase Client SDK Configuration (for client-side use)
 NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-auth-domain
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-storage-bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
 NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+# NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your-measurement-id # Optional for Analytics
 
-# Firebase Admin Config
-FIREBASE_ADMIN_PRIVATE_KEY=your-private-key
-FIREBASE_ADMIN_CLIENT_EMAIL=your-client-email
+# Firebase Admin SDK Configuration (for server-side use - Server Actions, API Routes, Cloud Functions)
+# These are typically set in your hosting environment for deployed functions/backend.
+# For local Admin SDK usage (e.g. local scripts, or if not using emulators that auto-init admin):
+# You might use a service account JSON key file or set these directly.
 FIREBASE_ADMIN_PROJECT_ID=your-project-id
+FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-xxxx@your-project-id.iam.gserviceaccount.com
+# The private key should be a single line string with actual newlines represented as \n.
+# In many hosting environments (like Vercel, Netlify), you can paste the multi-line key directly.
+FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQD...\n-----END PRIVATE KEY-----\n"
 ```
 
-## 2. Firebase Client Configuration
+## 2. Firebase Client SDK Initialization
+
+Initialize the Firebase client SDK for use in client components and hooks.
 
 ```typescript
-// lib/firebase/config.ts
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
+// src/lib/firebase/config.ts (or firebaseClient.ts)
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
+// import { getFunctions, Functions } from 'firebase/functions'; // If using callable functions from client
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -40,312 +54,259 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  // measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let app: FirebaseApp;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-export const storage = getStorage(app);
-export default app;
+const db: Firestore = getFirestore(app);
+const auth: Auth = getAuth(app);
+const storage: FirebaseStorage = getStorage(app);
+// const functions: Functions = getFunctions(app); // Optional
+
+export { app, db, auth, storage /*, functions */ };
 ```
 
-## 3. Firebase Admin Configuration
+## 3. Firebase Admin SDK Initialization
+
+Initialize the Firebase Admin SDK for server-side operations (Server Actions, API Routes, or separate backend scripts).
 
 ```typescript
-// lib/firebase/admin.ts
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
+// src/lib/firebase/admin.ts
+import * as admin from 'firebase-admin';
+import { ServiceAccount } from 'firebase-admin';
 
-const firebaseAdminConfig = {
-  credential: cert({
+if (!admin.apps.length) {
+  const serviceAccount: ServiceAccount = {
     projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
     clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+    // Replace escaped newlines for the private key if it's stored as a single line in .env
     privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  }),
-};
+  };
 
-const adminApp = !getApps().length 
-  ? initializeApp(firebaseAdminConfig, 'admin')
-  : getApps().find(app => app.name === 'admin');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    // databaseURL: `https://${process.env.FIREBASE_ADMIN_PROJECT_ID}.firebaseio.com`, // If using Realtime Database
+    // storageBucket: `${process.env.FIREBASE_ADMIN_PROJECT_ID}.appspot.com` // If using Admin Storage
+  });
+  console.log("Firebase Admin SDK initialized.");
+} else {
+  // admin.app() will return the default app if it already exists.
+  // admin.app('admin-app-name') can be used for named apps if needed.
+}
 
-export const adminDb = getFirestore(adminApp);
-export const adminAuth = getAuth(adminApp);
+const adminDb = admin.firestore();
+const adminAuth = admin.auth();
+const adminStorage = admin.storage();
+
+export { adminDb, adminAuth, adminStorage };
 ```
+**Note on Admin SDK Initialization:** In environments like Firebase Cloud Functions, the Admin SDK might be auto-initialized. For Next.js backend code (API routes, Server Actions), explicit initialization as shown is usually necessary.
 
-## 4. Firebase Security Rules
+## 4. Firestore Security Rules (`firestore.rules`)
 
-### Firestore Rules
+Define strong security rules to protect your Firestore data. These rules are deployed to Firebase.
+
 ```javascript
 // firestore.rules
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Products (public read, admin write)
+
+    // Helper function to check if a user is an admin
+    function isAdmin() {
+      // Example: Check for a custom claim 'admin' or a role in a user document
+      // return request.auth.token.admin == true;
+      // OR return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true; // Adjust based on your user roles model
+    }
+
+    // Products: Publicly readable, writable only by admins.
     match /products/{productId} {
       allow read: if true;
       allow write: if isAdmin();
+      // You might want to allow creating reviews as a subcollection by authenticated users
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null && request.resource.data.userId == request.auth.uid; // User can update their own review
+        allow delete: if isAdmin();
+      }
     }
-    
-    // Categories (public read, admin write)
+
+    // Categories: Publicly readable, writable only by admins.
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // Orders (user can read own orders, admin can read all)
-    match /orders/{orderId} {
-      allow read: if resource.data.userId == request.auth.uid || isAdmin();
-      allow create: if request.auth != null;
-      allow update: if isAdmin();
+
+    // Users: Users can read and write their own document. Admins can read/write any.
+    match /users/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null; // Allow user creation upon signup
+      // Admins can manage users
+      allow list, get, write: if isAdmin(); 
     }
-    
-    // Cart (user can manage own cart)
-    match /cart/{userId} {
+
+    // Cart: Users can manage their own cart. Session-based carts for guests might need different rules.
+    // This example assumes cart documents are identified by userId.
+    match /carts/{userId} { // Or /carts/{sessionId} for guest carts
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      // For guest carts, you might allow writes if request.auth == null and a valid session ID is proven.
     }
-    
-    // Admin functions
-    function isAdmin() {
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+
+    // Orders: Users can create orders and read their own. Admins can manage all orders.
+    match /orders/{orderId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin(); // e.g., for updating order status
+      // No direct delete by users, perhaps only by admins or through specific logic.
     }
+
+    // Site Settings (e.g., UPI ID, shipping rates): Readable by all, writable only by admins.
+    match /settings/site_config { // Assuming a single document for site-wide settings
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Other collections (e.g., reviews, wishlist) would need their own rules.
   }
 }
 ```
+**Deploy rules:** `firebase deploy --only firestore:rules`
 
-### Storage Rules
+## 5. Firebase Storage Security Rules (`storage.rules`)
+
+Secure your Firebase Storage buckets.
+
 ```javascript
 // storage.rules
 rules_version = '2';
+
 service firebase.storage {
-  match /b/{bucket}/o {
-    // Product images (public read, admin write)
-    match /products/{allPaths=**} {
+  match /b/{bucket}/o { // Matches all files in the bucket
+
+    function isAdmin() {
+      // return request.auth.token.admin == true;
+      return request.auth != null && request.auth.token.isAdmin == true; // Example: check for custom claim set via Admin SDK
+    }
+
+    // Product Images: Publicly readable, writable by admins.
+    // Path: /products/{productId}/{imageFileName}
+    match /products/{productId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && isAdmin();
+      allow write: if isAdmin();
     }
-    
-    // User uploads (authenticated users only)
+
+    // User-specific files (e.g., avatars, order attachments): User can read/write their own.
+    // Path: /users/{userId}/{allPaths=**}
     match /users/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Ensure content types and sizes are validated for uploads where possible.
+    // Example: allow write: if request.auth != null && request.resource.size < 5 * 1024 * 1024 // Max 5MB
+    //                        && request.resource.contentType.matches('image/.*|application/pdf');
   }
 }
 ```
+**Deploy rules:** `firebase deploy --only storage`
 
-## 5. Firestore Collections Structure
+## 6. Firestore Data Structures & Service Patterns (Illustrative)
+
+Refer to `typescript-types.mdc` for detailed type definitions (Product, Category, Order, Cart, User, etc.).
+
+### Example: Product Service
+Services encapsulate data access logic and should be used by Server Actions or API Routes.
 
 ```typescript
-// types/firebase.ts
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  originalPrice?: number;
-  images: string[];
-  category: string;
-  stock: number;
-  featured: boolean;
-  tags: string[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+// src/lib/firebase/services/productService.ts
+import { adminDb } from '@/lib/firebase/admin'; // Use Admin SDK for server-side services
+import { Product } from '@/types/firebase'; // Your defined Product type
+import { CollectionReference, Timestamp } from 'firebase-admin/firestore';
+
+const productsCollection = adminDb.collection('products') as CollectionReference<Omit<Product, 'id'> & { createdAt?: Timestamp, updatedAt?: Timestamp }>;
+
+export async function getProductById(id: string): Promise<Product | null> {
+  const docSnap = await productsCollection.doc(id).get();
+  if (!docSnap.exists) return null;
+  const data = docSnap.data();
+  return { id: docSnap.id, ...data } as Product;
 }
 
-export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  image?: string;
-  parentId?: string;
-  createdAt: Timestamp;
-}
-
-export interface Order {
-  id: string;
-  userId?: string;
-  items: OrderItem[];
-  totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: Address;
-  paymentMethod: 'upi' | 'card';
-  paymentStatus: 'pending' | 'completed' | 'failed';
-  trackingNumber?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-export interface Cart {
-  userId?: string;
-  sessionId?: string;
-  items: CartItem[];
-  updatedAt: Timestamp;
-}
-```
-
-## 6. Firebase Service Patterns
-
-### Product Service
-```typescript
-// lib/firebase/services/productService.ts
-import { collection, doc, getDocs, getDoc, query, where, orderBy, limit } from 'firebase/firestore';
-import { db } from '../config';
-import { Product } from '@/types/firebase';
-
-export class ProductService {
-  private collection = collection(db, 'products');
-
-  async getProducts(categoryId?: string, limitCount = 20): Promise<Product[]> {
-    try {
-      let q = query(this.collection, orderBy('createdAt', 'desc'), limit(limitCount));
-      
-      if (categoryId) {
-        q = query(q, where('category', '==', categoryId));
-      }
-
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Product[];
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      throw new Error('Failed to fetch products');
-    }
-  }
-
-  async getProduct(id: string): Promise<Product | null> {
-    try {
-      const docRef = doc(this.collection, id);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return {
-          id: docSnap.id,
-          ...docSnap.data()
-        } as Product;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      throw new Error('Failed to fetch product');
-    }
-  }
-}
-
-export const productService = new ProductService();
-```
-
-## 7. Firebase Cloud Functions
-
-### Setup
-```bash
-# Install Firebase CLI
-npm install -g firebase-tools
-
-# Initialize functions
-firebase init functions
-
-# Install dependencies
-cd functions
-npm install
-```
-
-### Function Structure
-```typescript
-// functions/src/index.ts
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
-
-admin.initializeApp();
-
-// Order processing function
-export const processOrder = functions.firestore
-  .document('orders/{orderId}')
-  .onCreate(async (snap, context) => {
-    const order = snap.data();
-    
-    // Send confirmation email
-    // Update inventory
-    // Process payment
-    
-    console.log('Order processed:', context.params.orderId);
+export async function createProduct(productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<Product> {
+  const now = Timestamp.now();
+  const docRef = await productsCollection.add({
+    ...productData,
+    createdAt: now,
+    updatedAt: now,
   });
-
-// Generate UPI QR code
-export const generateUPIQR = functions.https.onCall(async (data, context) => {
-  const { amount, upiId } = data;
-  
-  // Generate QR code URL
-  const qrUrl = `upi://pay?pa=${upiId}&am=${amount}&cu=INR`;
-  
-  return { qrUrl };
-});
-```
-
-## 8. Error Handling
-
-```typescript
-// lib/firebase/errors.ts
-export class FirebaseError extends Error {
-  constructor(message: string, public code?: string) {
-    super(message);
-    this.name = 'FirebaseError';
-  }
+  return { id: docRef.id, ...productData, createdAt: now, updatedAt: now };
 }
 
-export function handleFirebaseError(error: any): string {
-  console.error('Firebase Error:', error);
-  
-  switch (error.code) {
-    case 'permission-denied':
-      return 'You do not have permission to perform this action';
-    case 'not-found':
-      return 'The requested item was not found';
-    case 'unavailable':
-      return 'Service is temporarily unavailable';
-    default:
-      return 'An unexpected error occurred';
+export async function getProducts(options: { categoryId?: string; limitCount?: number; lastVisibleId?: string } = {}): Promise<{ products: Product[], lastVisibleId?: string }> {
+  let query = productsCollection.orderBy('createdAt', 'desc');
+  if (options.categoryId) {
+    query = query.where('category', '==', options.categoryId);
   }
+  if (options.lastVisibleId) {
+    const lastDoc = await productsCollection.doc(options.lastVisibleId).get();
+    if (lastDoc.exists) {
+      query = query.startAfter(lastDoc);
+    }
+  }
+  if (options.limitCount) {
+    query = query.limit(options.limitCount);
+  }
+
+  const snapshot = await query.get();
+  const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+  const lastVisibleId = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : undefined;
+  
+  return { products, lastVisibleId };
 }
+
+// ... other methods like updateProduct, deleteProduct, etc.
 ```
 
-## 9. Performance Optimization
+## 7. Firebase Cloud Functions (Optional)
 
-### Pagination
-```typescript
-// lib/firebase/pagination.ts
-import { query, orderBy, startAfter, limit, DocumentSnapshot } from 'firebase/firestore';
+For complex backend logic, triggers, or scheduled tasks, use Firebase Cloud Functions. These are deployed separately.
 
-export function createPaginatedQuery(
-  baseQuery: any,
-  pageSize: number,
-  lastDoc?: DocumentSnapshot
-) {
-  let q = query(baseQuery, orderBy('createdAt', 'desc'), limit(pageSize));
-  
-  if (lastDoc) {
-    q = query(q, startAfter(lastDoc));
-  }
-  
-  return q;
-}
-```
+-   **Location:** Typically in a `functions` directory at the root of your Firebase project.
+-   **Initialization:** Admin SDK is usually auto-initialized in the Cloud Functions environment.
+-   **Example Trigger (Order Creation):
+    ```typescript
+    // functions/src/index.ts
+    import * as functions from 'firebase-functions';
+    import * as admin from 'firebase-admin';
+    // admin.initializeApp(); // Usually not needed if auto-initialized
 
-### Caching
-```typescript
-// lib/firebase/cache.ts
-import { enableNetwork, disableNetwork } from 'firebase/firestore';
+    export const onOrderCreate = functions.firestore
+        .document('orders/{orderId}')
+        .onCreate(async (snap, context) => {
+            const order = snap.data();
+            console.log(`New order ${context.params.orderId} created:`, order);
+            // Example: Send a confirmation email, update inventory, notify admin, etc.
+            // await sendOrderConfirmationEmail(order.userEmail, order);
+            return null;
+        });
+    ```
+**Deploy functions:** `firebase deploy --only functions`
 
-export async function enableOfflineSupport() {
-  try {
-    await enableNetwork(db);
-  } catch (error) {
-    console.error('Error enabling offline support:', error);
-  }
-}
-```
+## 8. Using Firebase Emulators
+
+For local development and testing, use the Firebase Emulator Suite to emulate Firestore, Auth, Storage, and Functions.
+
+-   **Setup:** `firebase init emulators`
+-   **Start:** `firebase emulators:start`
+-   Configure your Next.js app to connect to the emulators when in development mode (see Firebase documentation for connecting SDKs to emulators).
+
+This comprehensive setup ensures a robust and secure Firebase integration for your Next.js e-commerce application.

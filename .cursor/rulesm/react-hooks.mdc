@@ -3,583 +3,707 @@ description: Custom React hooks for Next.js + Firebase e-commerce
 globs: "**/hooks/**"
 alwaysApply: false
 ---
+# React Hooks for Next.js & Firebase E-commerce App
 
-# Custom React Hooks for E-commerce
+This document outlines best practices and provides examples for creating and using React Hooks within the Next.js and Firebase e-commerce application. Hooks are essential for encapsulating reusable stateful logic and side effects.
 
-## 1. Cart Management Hook
+## General Hook Guidelines
 
+1.  **Naming Convention**: Custom hooks should always start with `use` (e.g., `useAuth`, `useCart`).
+2.  **Single Responsibility**: Each hook should have a clear, single responsibility. Avoid creating overly complex hooks that manage too many unrelated pieces of state or logic.
+3.  **Return Values**: Hooks should return values (state, functions) in a way that is easy to destructure and use. Prefer returning objects over arrays if there are multiple values, unless the order is intrinsically meaningful (like `useState`).
+4.  **Dependencies**: Be mindful of the dependency arrays in `useEffect`, `useCallback`, and `useMemo` to prevent unnecessary re-renders or stale closures.
+5.  **Client-Side Only**: Most React Hooks are designed for client components (`"use client"` directive in Next.js). For server-side data fetching or logic, prefer Server Components, Server Actions, or API Routes.
+6.  **Error Handling**: Implement robust error handling within hooks, especially those involving asynchronous operations like Firebase calls. Expose error states and retry mechanisms where appropriate.
+7.  **Testing**: Write unit tests for custom hooks to ensure they behave as expected.
+
+## Firebase-Specific Hooks
+
+These hooks interact directly with Firebase services.
+
+### 1. `useAuth`
+
+Manages user authentication state with Firebase Authentication.
+
+**`src/hooks/useAuth.ts`**:
 ```typescript
-// hooks/useCart.ts
-'use client'
+import { useEffect, useState } from 'react';
+import { User } from 'firebase/auth';
+import { auth } from '@/lib/firebase/client'; // Assuming client SDK init
 
-import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
-import { doc, setDoc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { CartItem } from '@/types/firebase';
-
-interface CartContextType {
-  items: CartItem[];
-  itemCount: number;
-  totalAmount: number;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
-  clearCart: () => Promise<void>;
-  loading: boolean;
-}
-
-const CartContext = createContext<CartContextType | undefined>(undefined);
-
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sessionId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('sessionId') || generateSessionId();
-    }
-    return generateSessionId();
-  });
+  const [error, setError] = useState<Error | null>(null);
 
-  // Initialize cart from Firestore or localStorage
   useEffect(() => {
-    const initializeCart = async () => {
-      try {
-        // Try to load from Firestore first
-        const cartRef = doc(db, 'cart', sessionId);
-        const cartSnap = await getDoc(cartRef);
-        
-        if (cartSnap.exists()) {
-          setItems(cartSnap.data().items || []);
-        } else {
-          // Fallback to localStorage
-          const localCart = localStorage.getItem('cart');
-          if (localCart) {
-            const parsedCart = JSON.parse(localCart);
-            setItems(parsedCart);
-            // Sync to Firestore
-            await setDoc(cartRef, { 
-              items: parsedCart, 
-              sessionId,
-              updatedAt: new Date() 
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing cart:', error);
-        // Fallback to localStorage only
-        const localCart = localStorage.getItem('cart');
-        if (localCart) {
-          setItems(JSON.parse(localCart));
-        }
-      } finally {
+    const unsubscribe = auth.onAuthStateChanged(
+      (firebaseUser) => {
+        setUser(firebaseUser);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Auth state change error:", err);
+        setError(err);
         setLoading(false);
       }
-    };
-
-    initializeCart();
-  }, [sessionId]);
-
-  // Sync cart to both Firestore and localStorage
-  const syncCart = async (newItems: CartItem[]) => {
-    try {
-      // Update Firestore
-      const cartRef = doc(db, 'cart', sessionId);
-      await setDoc(cartRef, {
-        items: newItems,
-        sessionId,
-        updatedAt: new Date()
-      });
-      
-      // Update localStorage
-      localStorage.setItem('cart', JSON.stringify(newItems));
-      setItems(newItems);
-    } catch (error) {
-      console.error('Error syncing cart:', error);
-      // Fallback to localStorage only
-      localStorage.setItem('cart', JSON.stringify(newItems));
-      setItems(newItems);
-    }
-  };
-
-  const addToCart = async (productId: string, quantity = 1) => {
-    const existingItemIndex = items.findIndex(item => item.productId === productId);
-    let newItems: CartItem[];
-
-    if (existingItemIndex >= 0) {
-      newItems = [...items];
-      newItems[existingItemIndex].quantity += quantity;
-    } else {
-      // Fetch product details
-      const productRef = doc(db, 'products', productId);
-      const productSnap = await getDoc(productRef);
-      
-      if (!productSnap.exists()) {
-        throw new Error('Product not found');
-      }
-      
-      const product = productSnap.data();
-      const newItem: CartItem = {
-        productId,
-        name: product.name,
-        price: product.price,
-        image: product.images[0],
-        quantity,
-      };
-      
-      newItems = [...items, newItem];
-    }
-
-    await syncCart(newItems);
-  };
-
-  const updateQuantity = async (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      await removeFromCart(productId);
-      return;
-    }
-
-    const newItems = items.map(item =>
-      item.productId === productId ? { ...item, quantity } : item
     );
 
-    await syncCart(newItems);
-  };
+    return () => unsubscribe();
+  }, []);
 
-  const removeFromCart = async (productId: string) => {
-    const newItems = items.filter(item => item.productId !== productId);
-    await syncCart(newItems);
-  };
-
-  const clearCart = async () => {
-    await syncCart([]);
-  };
-
-  const itemCount = items.reduce((total, item) => total + item.quantity, 0);
-  const totalAmount = items.reduce((total, item) => total + (item.price * item.quantity), 0);
-
-  return (
-    <CartContext.Provider value={{
-      items,
-      itemCount,
-      totalAmount,
-      addToCart,
-      updateQuantity,
-      removeFromCart,
-      clearCart,
-      loading
-    }}>
-      {children}
-    </CartContext.Provider>
-  );
-}
-
-export function useCart() {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
-}
-
-function generateSessionId(): string {
-  const id = Math.random().toString(36).substr(2, 9);
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('sessionId', id);
-  }
-  return id;
+  return { user, loading, error };
 }
 ```
 
-## 2. Products Hook
-
+**Usage**:
 ```typescript
-// hooks/useProducts.ts
-'use client'
+// In a client component
+"use client";
+import { useAuth } from '@/hooks/useAuth';
 
-import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, limit, getDocs, startAfter, DocumentSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { Product } from '@/types/firebase';
+function UserProfile() {
+  const { user, loading, error } = useAuth();
 
-interface UseProductsOptions {
-  categoryId?: string;
-  featured?: boolean;
-  limit?: number;
-  orderByField?: string;
-  orderByDirection?: 'asc' | 'desc';
-}
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  if (!user) return <p>Please sign in.</p>;
 
-export function useProducts(options: UseProductsOptions = {}) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-
-  const {
-    categoryId,
-    featured,
-    limit: limitCount = 20,
-    orderByField = 'createdAt',
-    orderByDirection = 'desc'
-  } = options;
-
-  const loadProducts = async (isLoadMore = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      let q = query(
-        collection(db, 'products'),
-        orderBy(orderByField, orderByDirection),
-        limit(limitCount)
-      );
-
-      // Add filters
-      if (categoryId) {
-        q = query(q, where('category', '==', categoryId));
-      }
-      
-      if (featured !== undefined) {
-        q = query(q, where('featured', '==', featured));
-      }
-
-      // Pagination
-      if (isLoadMore && lastDoc) {
-        q = query(q, startAfter(lastDoc));
-      }
-
-      const snapshot = await getDocs(q);
-      const newProducts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Product[];
-
-      if (isLoadMore) {
-        setProducts(prev => [...prev, ...newProducts]);
-      } else {
-        setProducts(newProducts);
-      }
-
-      // Update pagination state
-      setLastDoc(snapshot.docs[snapshot.docs.length - 1] || null);
-      setHasMore(snapshot.docs.length === limitCount);
-
-    } catch (err) {
-      console.error('Error loading products:', err);
-      setError('Failed to load products');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadProducts();
-  }, [categoryId, featured, limitCount, orderByField, orderByDirection]);
-
-  const loadMore = () => {
-    if (!loading && hasMore) {
-      loadProducts(true);
-    }
-  };
-
-  const refresh = () => {
-    setLastDoc(null);
-    setHasMore(true);
-    loadProducts();
-  };
-
-  return {
-    products,
-    loading,
-    error,
-    hasMore,
-    loadMore,
-    refresh
-  };
+  return <p>Welcome, {user.displayName || user.email}!</p>;
 }
 ```
 
-## 3. Firebase Data Hook
+### 2. `useFirestoreDocument`
 
+Subscribes to real-time updates for a single Firestore document.
+
+**`src/hooks/useFirestoreDocument.ts`**:
 ```typescript
-// hooks/useFirestore.ts
-'use client'
+import { useEffect, useState } from 'react';
+import { doc, onSnapshot, DocumentData, FirestoreError } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client'; // Firestore client instance
 
-import { useState, useEffect } from 'react';
-import { 
-  doc, 
-  collection, 
-  onSnapshot, 
-  DocumentSnapshot, 
-  QuerySnapshot,
-  FirestoreError 
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-
-// Hook for real-time document
-export function useDocument<T>(collectionName: string, docId: string) {
+export function useFirestoreDocument<T = DocumentData>(path: string) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FirestoreError | null>(null);
 
   useEffect(() => {
-    if (!docId) {
+    if (!path) {
       setData(null);
       setLoading(false);
       return;
     }
 
-    const docRef = doc(db, collectionName, docId);
-    
+    const docRef = doc(db, path);
     const unsubscribe = onSnapshot(
       docRef,
-      (snapshot: DocumentSnapshot) => {
+      (snapshot) => {
         if (snapshot.exists()) {
           setData({ id: snapshot.id, ...snapshot.data() } as T);
         } else {
-          setData(null);
+          setData(null); // Document does not exist
         }
         setLoading(false);
-        setError(null);
       },
-      (err: FirestoreError) => {
-        console.error(`Error listening to ${collectionName}/${docId}:`, err);
-        setError(err.message);
+      (err) => {
+        console.error(`Error fetching document from ${path}:`, err);
+        setError(err);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [collectionName, docId]);
-
-  return { data, loading, error };
-}
-
-// Hook for real-time collection
-export function useCollection<T>(collectionName: string, queryConstraints?: any[]) {
-  const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const collectionRef = collection(db, collectionName);
-    
-    const unsubscribe = onSnapshot(
-      collectionRef,
-      (snapshot: QuerySnapshot) => {
-        const documents = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as T[];
-        
-        setData(documents);
-        setLoading(false);
-        setError(null);
-      },
-      (err: FirestoreError) => {
-        console.error(`Error listening to ${collectionName}:`, err);
-        setError(err.message);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [collectionName]);
+  }, [path]);
 
   return { data, loading, error };
 }
 ```
 
-## 4. Order Management Hook
-
+**Usage**:
 ```typescript
-// hooks/useOrders.ts
-'use client'
+// In a client component for a specific product
+"use client";
+import { useFirestoreDocument } from '@/hooks/useFirestoreDocument';
+import { Product } from '@/types'; // Assuming Product type definition
 
-import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { Order } from '@/types/firebase';
+function ProductDetails({ productId }: { productId: string }) {
+  const { data: product, loading, error } = useFirestoreDocument<Product>(`products/${productId}`);
 
-export function useOrders(userId?: string) {
-  const [orders, setOrders] = useState<Order[]>([]);
+  if (loading) return <p>Loading product...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  if (!product) return <p>Product not found.</p>;
+
+  return <h1>{product.name}</h1>;
+}
+```
+
+### 3. `useFirestoreCollection`
+
+Subscribes to real-time updates for a Firestore collection, with optional querying/filtering.
+
+**`src/hooks/useFirestoreCollection.ts`**:
+```typescript
+import { useEffect, useState } from 'react';
+import { collection, query, onSnapshot, Query, DocumentData, FirestoreError, CollectionReference } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
+
+// Allow either a direct path string or a pre-built Query/CollectionReference
+type Source<T> = string | Query<T> | CollectionReference<T>;
+
+export function useFirestoreCollection<T = DocumentData>(source: Source<T>) {
+  const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FirestoreError | null>(null);
 
   useEffect(() => {
-    if (!userId) {
-      setOrders([]);
+    if (!source) {
+        setData([]);
+        setLoading(false);
+        return;
+    }
+
+    let unsubscribe: () => void;
+
+    try {
+        const ref = typeof source === 'string' ? collection(db, source) : source;
+        
+        unsubscribe = onSnapshot(
+            query(ref), // Ensure it's a query for onSnapshot
+            (snapshot) => {
+                const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+                setData(items);
+                setLoading(false);
+            },
+            (err) => {
+                console.error("Error fetching collection:", err);
+                setError(err);
+                setLoading(false);
+            }
+        );
+    } catch (err: any) {
+        console.error("Error setting up collection listener:", err);
+        setError(err);
+        setLoading(false);
+    }
+
+
+    return () => {
+        if (unsubscribe) {
+            unsubscribe();
+        }
+    };
+  }, [source]); // Re-run if the path or query object changes
+
+  return { data, loading, error };
+}
+```
+
+**Usage**:
+```typescript
+// In a client component for listing products
+"use client";
+import { useFirestoreCollection } from '@/hooks/useFirestoreCollection';
+import { Product } from '@/types';
+import { collection, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
+
+function ProductList({ category }: { category: string }) {
+  // Example with querying
+  const productsQuery = query(collection(db, 'products'), where('category', '==', category));
+  const { data: products, loading, error } = useFirestoreCollection<Product>(productsQuery);
+
+  if (loading) return <p>Loading products...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  return (
+    <ul>
+      {products.map(product => <li key={product.id}>{product.name}</li>)}
+    </ul>
+  );
+}
+```
+
+### 4. `useStorage`
+
+Provides functions for interacting with Firebase Storage (e.g., uploading files, getting download URLs).
+
+**`src/hooks/useStorage.ts`**:
+```typescript
+import { useState } from 'react';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject, UploadTaskSnapshot, FirebaseStorageError } from 'firebase/storage';
+import { storage } from '@/lib/firebase/client'; // Firebase Storage instance
+
+export function useStorage() {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<FirebaseStorageError | Error | null>(null);
+  const [downloadURL, setDownloadURL] = useState<string | null>(null);
+
+  const uploadFile = async (filePath: string, file: File) => {
+    setUploading(true);
+    setError(null);
+    setDownloadURL(null);
+    setProgress(0);
+
+    const storageRef = ref(storage, filePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    return new Promise<string>((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot: UploadTaskSnapshot) => {
+          const prog = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          setProgress(prog);
+        },
+        (err: FirebaseStorageError) => {
+          console.error("File upload error:", err);
+          setError(err);
+          setUploading(false);
+          reject(err);
+        },
+        async () => {
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            setDownloadURL(url);
+            setUploading(false);
+            resolve(url);
+          } catch (err: any) {
+            console.error("Error getting download URL:", err);
+            setError(err);
+            setUploading(false);
+            reject(err);
+          }
+        }
+      );
+    });
+  };
+
+  const deleteFile = async (filePath: string) => {
+    setError(null);
+    const storageRef = ref(storage, filePath);
+    try {
+      await deleteObject(storageRef);
+      setDownloadURL(null); // Clear download URL if the deleted file was the last one uploaded
+    } catch (err: any) {
+      console.error("File deletion error:", err);
+      setError(err);
+      throw err; // Re-throw for the caller to handle
+    }
+  };
+
+  return { uploadFile, deleteFile, uploading, progress, error, downloadURL };
+}
+```
+
+**Usage**:
+```typescript
+// In a client component for file uploading
+"use client";
+import { useStorage } from '@/hooks/useStorage';
+import React, { useState } <%2Fhandle%2Dfile%2Dchange%2F> {
+  const { uploadFile, uploading, progress, error, downloadURL } = useStorage();
+  const [file, setFile] = useState<File | null>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setFile(event.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (file) {
+      try {
+        const url = await uploadFile(`uploads/${Date.now()}_${file.name}`, file);
+        console.log('File uploaded successfully:', url);
+        // Do something with the URL, e.g., save to Firestore
+      } catch (uploadError) {
+        console.error('Upload failed:', uploadError);
+      }
+    }
+  };
+
+  return (
+    <div>
+      <input type="file" onChange={handleFileChange} />
+      <button onClick={handleUpload} disabled={uploading || !file}>
+        {uploading ? `Uploading... ${progress}%` : 'Upload'}
+      </button>
+      {error && <p style={{ color: 'red' }}>Error: {error.message}</p>}
+      {downloadURL && <p>Last upload: <a href={downloadURL} target="_blank" rel="noopener noreferrer">View File</a></p>}
+    </div>
+  );
+}
+```
+
+## Application-Specific E-commerce Hooks
+
+These hooks encapsulate logic specific to the e-commerce domain.
+
+### 1. `useCart`
+
+Manages the shopping cart state. This could use `localStorage` for persistence for guest users and sync with Firestore for logged-in users.
+
+**`src/hooks/useCart.ts`** (Simplified example using `localStorage` and React Context):
+
+```typescript
+// This hook would typically be used with a CartContext provider
+import { useState, useEffect, useCallback } from 'react';
+import { Product, CartItem } from '@/types'; // Assuming type definitions
+
+const CART_STORAGE_KEY = 'myAppCart';
+
+export function useCart() {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true); // For initial load from storage
+
+  useEffect(() => {
+    try {
+      const storedCart = localStorage.getItem(CART_STORAGE_KEY);
+      if (storedCart) {
+        setItems(JSON.parse(storedCart));
+      }
+    } catch (error) {
+      console.error("Failed to load cart from localStorage", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Persist cart to localStorage whenever items change, if not loading initially
+    if (!loading) {
+      try {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      } catch (error) {
+        console.error("Failed to save cart to localStorage", error);
+      }
+    }
+  }, [items, loading]);
+
+  const addItem = useCallback((product: Product, quantity: number = 1) => {
+    setItems(prevItems => {
+      const existingItem = prevItems.find(item => item.productId === product.id);
+      if (existingItem) {
+        return prevItems.map(item =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      }
+      return [...prevItems, { productId: product.id, name: product.name, price: product.price, quantity, image: product.images?.[0] }];
+    });
+  }, []);
+
+  const removeItem = useCallback((productId: string) => {
+    setItems(prevItems => prevItems.filter(item => item.productId !== productId));
+  }, []);
+
+  const updateQuantity = useCallback((productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeItem(productId);
+    } else {
+      setItems(prevItems =>
+        prevItems.map(item =>
+          item.productId === productId ? { ...item, quantity } : item
+        )
+      );
+    }
+  }, [removeItem]);
+
+  const clearCart = useCallback(() => {
+    setItems([]);
+  }, []);
+
+  const cartTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // For logged-in users, you might add functions to sync with Firestore:
+  // const syncCartWithFirestore = async (userId: string) => { /* ... */ };
+  // const loadCartFromFirestore = async (userId: string) => { /* ... */ };
+
+  return {
+    items,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    cartTotal,
+    itemCount,
+    loadingInitialCart: loading,
+  };
+}
+```
+**Note**: For a production app, `useCart` would be more robust, possibly involving React Context for global state and deeper integration with Firestore for persistence across devices for logged-in users.
+
+### 2. `useUserProfile`
+
+Fetches and manages user profile data from Firestore, often complementing `useAuth`.
+
+**`src/hooks/useUserProfile.ts`**:
+```typescript
+import { useState, useEffect } from 'react';
+import { doc, onSnapshot, setDoc, DocumentData, FirestoreError } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
+import { useAuth } from './useAuth'; // To get current user
+import { UserProfileData } from '@/types'; // Define UserProfileData type
+
+export function useUserProfile() {
+  const { user, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<FirestoreError | Error | null>(null);
+
+  useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+    if (!user) {
+      setProfile(null);
       setLoading(false);
       return;
     }
 
-    const ordersRef = collection(db, 'orders');
-    const q = query(
-      ordersRef,
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
-
+    setLoading(true);
+    const profileRef = doc(db, 'users', user.uid);
     const unsubscribe = onSnapshot(
-      q,
+      profileRef,
       (snapshot) => {
-        const orderData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Order[];
-        
-        setOrders(orderData);
+        if (snapshot.exists()) {
+          setProfile({ uid: user.uid, ...snapshot.data() } as UserProfileData);
+        } else {
+          // Optionally create a default profile here if it doesn't exist
+          console.log("User profile does not exist for UID:", user.uid);
+          setProfile(null); // Or a default profile structure
+        }
         setLoading(false);
-        setError(null);
       },
-      (err) => {
-        console.error('Error listening to orders:', err);
-        setError(err.message);
+      (err)
+        setError(err);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [user, authLoading]);
 
-  return { orders, loading, error };
-}
-```
-
-## 5. Local Storage Hook
-
-```typescript
-// hooks/useLocalStorage.ts
-'use client'
-
-import { useState, useEffect } from 'react';
-
-export function useLocalStorage<T>(key: string, initialValue: T) {
-  const [storedValue, setStoredValue] = useState<T>(initialValue);
-
-  useEffect(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      if (item) {
-        setStoredValue(JSON.parse(item));
-      }
-    } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
+  const updateProfile = async (data: Partial<UserProfileData>) => {
+    if (!user) {
+      setError(new Error("User not authenticated for profile update."));
+      return false;
     }
-  }, [key]);
-
-  const setValue = (value: T | ((val: T) => T)) => {
+    const profileRef = doc(db, 'users', user.uid);
     try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
-    }
-  };
-
-  return [storedValue, setValue] as const;
-}
-```
-
-## 6. Wishlist Hook
-
-```typescript
-// hooks/useWishlist.ts
-'use client'
-
-import { useState, useEffect } from 'react';
-import { useLocalStorage } from './useLocalStorage';
-
-export function useWishlist() {
-  const [wishlist, setWishlist] = useLocalStorage<string[]>('wishlist', []);
-
-  const addToWishlist = (productId: string) => {
-    setWishlist(prev => [...prev, productId]);
-  };
-
-  const removeFromWishlist = (productId: string) => {
-    setWishlist(prev => prev.filter(id => id !== productId));
-  };
-
-  const toggleWishlist = (productId: string) => {
-    if (isInWishlist(productId)) {
-      removeFromWishlist(productId);
-    } else {
-      addToWishlist(productId);
-    }
-  };
-
-  const isInWishlist = (productId: string) => {
-    return wishlist.includes(productId);
-  };
-
-  return {
-    wishlist,
-    addToWishlist,
-    removeFromWishlist,
-    toggleWishlist,
-    isInWishlist
-  };
-}
-```
-
-## 7. Form Validation Hook
-
-```typescript
-// hooks/useFormValidation.ts
-'use client'
-
-import { useState } from 'react';
-import { z } from 'zod';
-
-export function useFormValidation<T extends Record<string, any>>(schema: z.ZodSchema<T>) {
-  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const validate = (data: T): boolean => {
-    try {
-      schema.parse(data);
-      setErrors({});
+      await setDoc(profileRef, data, { merge: true });
       return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const formattedErrors: Partial<Record<keyof T, string>> = {};
-        error.errors.forEach((err) => {
-          const field = err.path[0] as keyof T;
-          formattedErrors[field] = err.message;
-        });
-        setErrors(formattedErrors);
-      }
+    } catch (err: any) {
+      setError(err);
       return false;
     }
   };
 
-  const handleSubmit = async (
-    data: T,
-    onSubmit: (data: T) => Promise<void>
-  ) => {
-    if (!validate(data)) return;
+  return { profile, loading: loading || authLoading, error, updateProfile };
+}
+```
+**Usage**:
+```typescript
+// In a client component
+"use client";
+import { useUserProfile } from '@/hooks/useUserProfile';
 
-    setIsSubmitting(true);
-    try {
-      await onSubmit(data);
-    } catch (error) {
-      console.error('Form submission error:', error);
-    } finally {
-      setIsSubmitting(false);
+function ProfileManager() {
+  const { profile, loading, error, updateProfile } = useUserProfile();
+
+  if (loading) return <p>Loading profile...</p>;
+  if (error) return <p>Error loading profile: {error.message}</p>;
+  if (!profile) return <p>No profile data found. Please complete your profile.</p>;
+
+  const handleUpdateName = async (newName: string) => {
+    await updateProfile({ displayName: newName });
+  };
+
+  return (
+    <div>
+      <p>Name: {profile.displayName}</p>
+      {/* ... other profile fields and form to update them */}
+    </div>
+  );
+}
+```
+
+### 3. `useForm` (Generic Form Handling)
+
+While libraries like `react-hook-form` + `zod` are highly recommended for complex forms, a simpler custom hook might look like this for basic cases. This example is very basic.
+
+**`src/hooks/useForm.ts`**:
+```typescript
+import { useState, ChangeEvent, FormEvent } from 'react';
+
+export function useForm<T extends Record<string, any>>(initialValues: T) {
+  const [values, setValues] = useState<T>(initialValues);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = event.target;
+    // Basic handling for checkbox type
+    const inputValue = type === 'checkbox' ? (event.target as HTMLInputElement).checked : value;
+    setValues(prev => ({ ...prev, [name]: inputValue }));
+  };
+
+  // Basic validation example, can be expanded or integrated with Zod
+  const validate = (currentValues: T): Partial<Record<keyof T, string>> => {
+    const tempErrors: Partial<Record<keyof T, string>> = {};
+    // Example: if (currentValues.email && !/\S+@\S+\.\S+/.test(currentValues.email)) {
+    //   tempErrors.email = 'Email is invalid.';
+    // }
+    return tempErrors;
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>, onSubmitCallback: (data: T) => Promise<void>) => {
+    event.preventDefault();
+    const validationErrors = validate(values);
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length === 0) {
+      setIsSubmitting(true);
+      try {
+        await onSubmitCallback(values);
+      } catch (submitError: any) {
+        // Potentially set a form-wide error
+        console.error("Submission error:", submitError);
+        setErrors(prev => ({ ...prev, form: submitError.message || "Submission failed" }));
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
-  const clearErrors = () => setErrors({});
+  const resetForm = () => {
+    setValues(initialValues);
+    setErrors({});
+    setIsSubmitting(false);
+  }
 
   return {
-    errors,
-    isSubmitting,
-    validate,
+    values,
+    handleChange,
     handleSubmit,
-    clearErrors
+    isSubmitting,
+    errors,
+    setValues, // Expose setValues for more complex updates if needed
+    setErrors, // To manually set errors from outside
+    resetForm,
   };
 }
 ```
+**Note**: For serious form handling, use `react-hook-form` and `zod` as outlined in `typescript-types.mdc`. This `useForm` is a conceptual placeholder.
+
+## Utility Hooks
+
+General-purpose hooks that can be used across the application.
+
+### 1. `useLocalStorage`
+
+A hook for easily interacting with `localStorage`.
+
+**`src/hooks/useLocalStorage.ts`**:
+```typescript
+import { useState, useEffect } from 'react';
+
+function getValueFromLocalStorage<T>(key: string, initialValue: T | (() => T)): T {
+  try {
+    const item = window.localStorage.getItem(key);
+    return item ? JSON.parse(item) : (initialValue instanceof Function ? initialValue() : initialValue);
+  } catch (error) {
+    console.warn(`Error reading localStorage key "${key}":`, error);
+    return initialValue instanceof Function ? initialValue() : initialValue;
+  }
+}
+
+export function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, (value: T | ((val: T) => T)) => void] {
+  const [storedValue, setStoredValue] = useState<T>(() => getValueFromLocalStorage(key, initialValue));
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(storedValue));
+    } catch (error) {
+      console.warn(`Error setting localStorage key "${key}":`, error);
+    }
+  }, [key, storedValue]);
+
+  return [storedValue, setStoredValue];
+}
+```
+
+### 2. `useDebounce`
+
+Debounces a value, useful for search inputs or other frequent updates.
+
+**`src/hooks/useDebounce.ts`**:
+```typescript
+import { useState, useEffect } from 'react';
+
+export function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+```
+
+**Usage**:
+```typescript
+// In a client component with a search input
+"use client";
+import React, { useState, useEffect } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
+
+function SearchComponent() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // 500ms delay
+
+  useEffect(() => {
+    if (debouncedSearchTerm) {
+      // Perform search API call or filter data
+      console.log('Searching for:', debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm]);
+
+  return (
+    <input
+      type="text"
+      placeholder="Search..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+  );
+}
+```
+
+## Integration with Next.js
+
+*   **Client Components**: Most custom hooks are intended for use within Client Components (`"use client"`). They help manage local UI state, side effects (like data fetching via Firebase SDKs), and browser-specific APIs.
+*   **Server Components**: Hooks like `useState`, `useEffect`, etc., cannot be used directly in Server Components. Data fetching in Server Components should be done via `async/await` directly, often using Firebase Admin SDK for secure access if the component renders on the server.
+*   **Server Actions**: Server Actions are server-side functions. While they don't use React hooks, hooks in Client Components can trigger Server Actions (e.g., a form submission handled by `useForm` could call a Server Action).
+*   **Data Fetching Strategy**:
+    *   Use hooks like `useFirestoreDocument` or `useFirestoreCollection` for real-time data in Client Components.
+    *   For initial data loads that don't require real-time updates, consider fetching data in Server Components and passing it as props to Client Components, or using SWR/React Query with Firebase SDK calls initiated in Client Components.
+
+## State Management
+
+Custom hooks play a crucial role in local component state. For global or shared state (e.g., cart, user session), consider:
+*   **React Context API**: Combine with `useReducer` or `useState` in a custom hook that provides context values. `useCart` is a good candidate for this.
+*   **Third-party libraries**: Zustand, Jotai, or Recoil can be used for more complex global state needs, and custom hooks can be created to interact with these stores.
+
+This set of hooks provides a solid foundation for building interactive and data-driven features in your e-commerce application. Remember to adapt and extend them based on your specific requirements.
