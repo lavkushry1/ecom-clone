@@ -122,11 +122,11 @@ const OrderManagement: React.FC = () => {
   const getOrderStats = () => {
     const stats = {
       total: orders.length,
-      pending: orders.filter(o => o.status === 'pending').length,
-      processing: orders.filter(o => o.status === 'processing').length,
-      shipped: orders.filter(o => o.status === 'shipped').length,
-      delivered: orders.filter(o => o.status === 'delivered').length,
-      cancelled: orders.filter(o => o.status === 'cancelled').length,
+      pending: orders.filter(o => o.orderStatus === 'pending').length,
+      processing: orders.filter(o => o.orderStatus === 'processing').length,
+      shipped: orders.filter(o => o.orderStatus === 'shipped').length,
+      delivered: orders.filter(o => o.orderStatus === 'delivered').length,
+      cancelled: orders.filter(o => o.orderStatus === 'cancelled').length,
     };
     return stats;
   };
@@ -244,7 +244,7 @@ const OrderManagement: React.FC = () => {
             className="pl-10"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | '')}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -268,34 +268,34 @@ const OrderManagement: React.FC = () => {
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center space-x-3">
                     <h3 className="font-semibold text-lg">Order #{order.id.substring(0, 8)}</h3>
-                    <Badge className={`${getStatusColor(order.status)} flex items-center space-x-1`}>
-                      {getStatusIcon(order.status)}
-                      <span className="capitalize">{order.status}</span>
+                    <Badge className={`${getStatusColor(order.orderStatus)} flex items-center space-x-1`}>
+                      {getStatusIcon(order.orderStatus)}
+                      <span className="capitalize">{order.orderStatus}</span>
                     </Badge>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                     <div>
-                      <p><strong>Customer:</strong> {order.deliveryAddress.name}</p>
-                      <p><strong>Email:</strong> {order.deliveryAddress.email}</p>
-                      <p><strong>Phone:</strong> {order.deliveryAddress.phone}</p>
+                      <p><strong>Customer:</strong> {order.customerInfo.name}</p>
+                      <p><strong>Email:</strong> {order.customerInfo.email}</p>
+                      <p><strong>Phone:</strong> {order.customerInfo.phone}</p>
                     </div>
                     <div>
                       <p><strong>Total:</strong> ₹{order.total}</p>
-                      <p><strong>Payment:</strong> {order.paymentMethod}</p>
+                      <p><strong>Payment:</strong> {order.paymentMethod.type}</p>
                       <p><strong>Date:</strong> {new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
 
                   <div className="text-sm text-gray-600">
-                    <p><strong>Address:</strong> {order.deliveryAddress.address}, {order.deliveryAddress.city}, {order.deliveryAddress.state} - {order.deliveryAddress.zipCode}</p>
+                    <p><strong>Address:</strong> {order.shippingAddress.addressLine1}, {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     <span className="text-sm font-medium">Items:</span>
                     {order.items.map((item, index) => (
                       <Badge key={index} variant="outline">
-                        {item.name} x{item.quantity}
+                        {item.product.name} x{item.quantity}
                       </Badge>
                     ))}
                   </div>
@@ -308,9 +308,9 @@ const OrderManagement: React.FC = () => {
                       <Button
                         key={status}
                         size="sm"
-                        variant={order.status === status ? "default" : "outline"}
+                        variant={order.orderStatus === status ? "default" : "outline"}
                         onClick={() => updateOrderStatus(order.id, status)}
-                        disabled={order.status === status}
+                        disabled={order.orderStatus === status}
                         className="capitalize"
                       >
                         {status}

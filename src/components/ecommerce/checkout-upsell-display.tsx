@@ -23,7 +23,7 @@ interface CheckoutUpsellDisplayProps {
 export function CheckoutUpsellDisplay({ cartProducts, onAddToCart }: CheckoutUpsellDisplayProps) {
   const [upsellProducts, setUpsellProducts] = useState<UpsellProduct[]>([]);
   const [selectedUpsells, setSelectedUpsells] = useState<Set<string>>(new Set());
-  const { addToCart } = useCart();
+  const { addItem } = useCart();
 
   // Generate smart upsell recommendations based on cart contents
   useEffect(() => {
@@ -32,43 +32,67 @@ export function CheckoutUpsellDisplay({ cartProducts, onAddToCart }: CheckoutUps
         {
           id: 'upsell-1',
           name: 'Extended Warranty Protection',
-          price: 299,
+          salePrice: 299,
           originalPrice: 499,
           upsellDiscount: 40,
           estimatedSavings: 200,
-          image: '/images/products/warranty.jpg',
+          images: ['/images/products/warranty.jpg'],
           category: 'Protection',
-          rating: 4.8,
-          reviewCount: 1250,
+          subcategory: 'Warranty',
+          brand: 'FlipProtect',
           description: '2-year extended warranty covering all damages',
+          stock: 100,
+          ratings: { average: 4.8, count: 1250 },
+          specifications: {},
+          features: ['2-year coverage', 'All damage protection'],
+          tags: ['warranty'],
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           bundleOffer: 'Only available during checkout'
         },
         {
           id: 'upsell-2', 
           name: 'Premium Gift Wrapping',
-          price: 99,
+          salePrice: 99,
           originalPrice: 199,
           upsellDiscount: 50,
           estimatedSavings: 100,
-          image: '/images/products/gift-wrap.jpg',
+          images: ['/images/products/gift-wrap.jpg'],
           category: 'Service',
-          rating: 4.9,
-          reviewCount: 890,
+          subcategory: 'Gift',
+          brand: 'FlipGift',
           description: 'Beautiful gift wrapping with personalized message',
+          stock: 50,
+          ratings: { average: 4.9, count: 890 },
+          specifications: {},
+          features: ['Premium wrapping', 'Personalized message'],
+          tags: ['gift'],
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           bundleOffer: 'Perfect for special occasions'
         },
         {
           id: 'upsell-3',
           name: 'Express Delivery (Same Day)',
-          price: 149,
+          salePrice: 149,
           originalPrice: 299,
           upsellDiscount: 50,
           estimatedSavings: 150,
-          image: '/images/products/express-delivery.jpg',
+          images: ['/images/products/express-delivery.jpg'],
           category: 'Delivery',
-          rating: 4.7,
-          reviewCount: 2100,
+          subcategory: 'Express',
+          brand: 'FlipExpress',
           description: 'Get your order delivered within 4 hours',
+          stock: 25,
+          ratings: { average: 4.7, count: 2100 },
+          specifications: {},
+          features: ['Same day delivery', '4-hour guarantee'],
+          tags: ['express'],
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           bundleOffer: 'Limited time offer'
         }
       ];
@@ -76,7 +100,7 @@ export function CheckoutUpsellDisplay({ cartProducts, onAddToCart }: CheckoutUps
       // Filter based on cart context
       const relevantUpsells = mockUpsells.filter((upsell, index) => {
         // Show different upsells based on cart value or product types
-        const cartValue = cartProducts.reduce((sum, product) => sum + product.price, 0);
+        const cartValue = cartProducts.reduce((sum, product) => sum + product.salePrice, 0);
         if (cartValue > 1000 && index === 0) return true; // Warranty for expensive items
         if (cartProducts.length > 2 && index === 1) return true; // Gift wrapping for multiple items
         if (cartValue > 500 && index === 2) return true; // Express delivery for valuable orders
@@ -101,7 +125,7 @@ export function CheckoutUpsellDisplay({ cartProducts, onAddToCart }: CheckoutUps
       if (product && onAddToCart) {
         onAddToCart(product);
       } else if (product) {
-        addToCart(product, 1);
+        addItem(product, 1);
       }
     }
     setSelectedUpsells(newSelected);
@@ -180,7 +204,7 @@ export function CheckoutUpsellDisplay({ cartProducts, onAddToCart }: CheckoutUps
                         <div className="flex items-center gap-1 mb-2">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                           <span className="text-xs text-gray-600">
-                            {product.rating} ({product.reviewCount} reviews)
+                            {product.ratings.average} ({product.ratings.count} reviews)
                           </span>
                         </div>
 
@@ -196,7 +220,7 @@ export function CheckoutUpsellDisplay({ cartProducts, onAddToCart }: CheckoutUps
                       <div className="text-right">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-gray-900">
-                            ₹{product.price}
+                            ₹{product.salePrice}
                           </span>
                           <span className="text-sm text-gray-500 line-through">
                             ₹{product.originalPrice}

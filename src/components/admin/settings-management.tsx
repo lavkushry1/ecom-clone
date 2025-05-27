@@ -272,11 +272,7 @@ export function SettingsManagement({ className }: SettingsManagementProps) {
   if (loading) {
     return (
       <div className={`space-y-6 ${className}`}>
-        <AdvancedSkeleton
-          type="form"
-          fields={6}
-          className="h-96"
-        />
+        <AdvancedSkeleton className="h-96" />
       </div>
     );
   }

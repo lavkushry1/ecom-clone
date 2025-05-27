@@ -11,10 +11,17 @@ interface ChatSupportProps {
   className?: string;
 }
 
+interface ChatMessage {
+  id: string;
+  type: 'bot' | 'user';
+  content: string;
+  timestamp: Date;
+}
+
 export function ChatSupport({ className }: ChatSupportProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       type: 'bot' as const,

@@ -61,6 +61,7 @@ export interface Product {
   salePrice: number
   stock: number
   specifications: Record<string, string>
+  features?: string[]
   ratings: {
     average: number
     count: number
@@ -103,7 +104,7 @@ export interface Order {
   billingAddress: Address
   paymentMethod: PaymentMethod
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded'
-  orderStatus: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
+  orderStatus: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
   subtotal: number
   shipping: number
   tax: number
@@ -126,11 +127,17 @@ export interface Category {
   name: string
   slug: string
   description: string
-  image: string
+  image?: string
   parentId?: string
   isActive: boolean
   sortOrder: number
+  productCount?: number
+  createdAt?: string
+  updatedAt?: string
 }
+
+// Type alias for backward compatibility
+export type ProductCategory = Category;
 
 export interface Wishlist {
   id: string
@@ -245,4 +252,4 @@ export interface CreditCardData {
   orderId: string
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled'
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
