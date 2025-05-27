@@ -9,7 +9,11 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "export": "next build && next export",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "seed": "node scripts/seed-database.js",
+    "firebase:setup": "echo 'Setting up Firebase...' && firebase --version || npm install -g firebase-tools",
+    "firebase:deploy": "firebase deploy --only firestore:rules,storage",
+    "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
