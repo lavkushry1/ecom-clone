@@ -277,7 +277,7 @@ export function SearchResultsDisplay({
                 <div className="text-center pt-8">
                   <Separator className="mb-4" />
                   <p className="text-muted-foreground">
-                    You've seen all {totalResults} products
+                    You&apos;ve seen all {totalResults} products
                   </p>
                 </div>
               )}
