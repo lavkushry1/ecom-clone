@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.restoreStockOnOrderCancel = exports.updateStockOnOrder = exports.getInventoryReport = exports.createRestockRequest = exports.setStockAlert = exports.bulkUpdateStock = exports.updateStock = exports.searchProducts = exports.getProducts = exports.deleteProduct = exports.updateProduct = exports.createProduct = exports.sendWelcomeEmail = exports.sendOrderUpdate = exports.sendOrderConfirmation = exports.validatePhone = exports.validateEmail = exports.validateZipCode = exports.processPayment = exports.verifyPaymentStatus = exports.generateUPIPaymentDetails = exports.getUserOrders = exports.getOrderById = exports.updateOrderStatus = exports.processOrder = void 0;
+exports.restoreStockOnOrderCancel = exports.updateStockOnOrder = exports.getInventoryReport = exports.createRestockRequest = exports.setStockAlert = exports.bulkUpdateStock = exports.updateStock = exports.getProductRecommendations = exports.searchProducts = exports.deleteProduct = exports.updateProduct = exports.createProduct = exports.sendNotification = exports.sendOrderStatusUpdate = exports.sendOrderConfirmation = exports.validatePhone = exports.validateEmail = exports.validateZipCode = exports.processPayment = exports.verifyPaymentStatus = exports.generateUPIPaymentDetails = exports.getUserOrders = exports.getOrderById = exports.updateOrderStatus = exports.processOrder = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 const orders_1 = require("./orders");
@@ -51,14 +51,14 @@ Object.defineProperty(exports, "validateEmail", { enumerable: true, get: functio
 Object.defineProperty(exports, "validatePhone", { enumerable: true, get: function () { return validation_1.validatePhone; } });
 const notifications_1 = require("./notifications");
 Object.defineProperty(exports, "sendOrderConfirmation", { enumerable: true, get: function () { return notifications_1.sendOrderConfirmation; } });
-Object.defineProperty(exports, "sendOrderUpdate", { enumerable: true, get: function () { return notifications_1.sendOrderUpdate; } });
-Object.defineProperty(exports, "sendWelcomeEmail", { enumerable: true, get: function () { return notifications_1.sendWelcomeEmail; } });
+Object.defineProperty(exports, "sendOrderStatusUpdate", { enumerable: true, get: function () { return notifications_1.sendOrderStatusUpdate; } });
+Object.defineProperty(exports, "sendNotification", { enumerable: true, get: function () { return notifications_1.sendNotification; } });
 const products_1 = require("./products");
 Object.defineProperty(exports, "createProduct", { enumerable: true, get: function () { return products_1.createProduct; } });
 Object.defineProperty(exports, "updateProduct", { enumerable: true, get: function () { return products_1.updateProduct; } });
 Object.defineProperty(exports, "deleteProduct", { enumerable: true, get: function () { return products_1.deleteProduct; } });
-Object.defineProperty(exports, "getProducts", { enumerable: true, get: function () { return products_1.getProducts; } });
 Object.defineProperty(exports, "searchProducts", { enumerable: true, get: function () { return products_1.searchProducts; } });
+Object.defineProperty(exports, "getProductRecommendations", { enumerable: true, get: function () { return products_1.getProductRecommendations; } });
 const inventory_1 = require("./inventory");
 Object.defineProperty(exports, "updateStock", { enumerable: true, get: function () { return inventory_1.updateStock; } });
 Object.defineProperty(exports, "bulkUpdateStock", { enumerable: true, get: function () { return inventory_1.bulkUpdateStock; } });
