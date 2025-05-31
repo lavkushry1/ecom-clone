@@ -19,13 +19,17 @@ export const createOrderProcessingTrigger = functions.firestore
 
         console.log(`Processing new order: ${orderId}`);
 
-        // Update order status to processing
-        if (event.data) {
-          await event.data.ref.update({
-            status: "processing",
-            processedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
+        // Check if order data exists
+        if (!event.data) {
+          console.error(`No data found for order: ${orderId}`);
+          return;
         }
+
+        // Update order status to processing
+        await event.data.ref.update({
+          status: "processing",
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
 
         // Create notification for user
         await db.collection("notifications").add({

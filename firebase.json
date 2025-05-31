@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "target": "flipkart-clone",
     "public": "out",
     "ignore": [
       "firebase.json",
@@ -8,10 +7,6 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      {
-        "source": "/api/**",
-        "function": "nextjsFunc"
-      },
       {
         "source": "**",
         "destination": "/index.html"

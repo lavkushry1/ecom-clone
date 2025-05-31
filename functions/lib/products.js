@@ -234,6 +234,7 @@ exports.searchProducts = functions.https.onCall({ cors: true }, async (request) 
         let filteredProducts = products;
         if (validatedData.query) {
             const searchTerm = validatedData.query.toLowerCase();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             filteredProducts = products.filter((product) => {
                 var _a, _b, _c, _d;
                 return ((_a = product.name) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(searchTerm)) ||

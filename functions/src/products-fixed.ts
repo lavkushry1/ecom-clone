@@ -243,20 +243,20 @@ export const searchProducts = functions.https.onCall(
       // Apply sorting
       if (validatedData.sortBy) {
         switch (validatedData.sortBy) {
-          case "price_low":
-            query = query.orderBy("salePrice", "asc");
-            break;
-          case "price_high":
-            query = query.orderBy("salePrice", "desc");
-            break;
-          case "rating":
-            query = query.orderBy("reviews.average", "desc");
-            break;
-          case "newest":
-            query = query.orderBy("createdAt", "desc");
-            break;
-          default:
-            query = query.orderBy("createdAt", "desc");
+        case "price_low":
+          query = query.orderBy("salePrice", "asc");
+          break;
+        case "price_high":
+          query = query.orderBy("salePrice", "desc");
+          break;
+        case "rating":
+          query = query.orderBy("reviews.average", "desc");
+          break;
+        case "newest":
+          query = query.orderBy("createdAt", "desc");
+          break;
+        default:
+          query = query.orderBy("createdAt", "desc");
         }
       } else {
         query = query.orderBy("createdAt", "desc");
@@ -276,6 +276,7 @@ export const searchProducts = functions.https.onCall(
       let filteredProducts = products;
       if (validatedData.query) {
         const searchTerm = validatedData.query.toLowerCase();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         filteredProducts = products.filter((product: any) =>
           product.name?.toLowerCase().includes(searchTerm) ||
           product.description?.toLowerCase().includes(searchTerm) ||

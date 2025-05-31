@@ -38,7 +38,8 @@ const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
 const db = admin.firestore();
 // Simple orders functions for v2
-exports.createOrderProcessingTrigger = functions.firestore.onDocumentCreated("orders/{orderId}", async (event) => {
+exports.createOrderProcessingTrigger = functions.firestore
+    .onDocumentCreated("orders/{orderId}", async (event) => {
     var _a;
     try {
         const orderData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
@@ -59,7 +60,8 @@ exports.createOrderProcessingTrigger = functions.firestore.onDocumentCreated("or
         await db.collection("notifications").add({
             userId: orderData.userId,
             title: "Order Confirmed",
-            message: `Your order #${orderId} has been confirmed and is being processed.`,
+            message: `Your order #${orderId} has been confirmed ` +
+                "and is being processed.",
             type: "order",
             read: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),

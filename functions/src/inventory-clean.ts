@@ -4,7 +4,12 @@ import {z} from "zod";
 
 const db = admin.firestore();
 
-// Simple inventory functions for v2
+interface ProductData {
+  stock: number;
+  salePrice: number;
+  name: string;
+}
+
 export const updateStock = functions.https.onCall(
   {cors: true},
   async (request) => {
@@ -22,12 +27,14 @@ export const updateStock = functions.https.onCall(
       });
 
       const {productId, quantity} = schema.parse(request.data);
-
       const productRef = db.collection("products").doc(productId);
       const doc = await productRef.get();
 
       if (!doc.exists) {
-        throw new functions.https.HttpsError("not-found", "Product not found");
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Product not found"
+        );
       }
 
       const currentStock = doc.data()?.stock || 0;
@@ -54,7 +61,8 @@ export const updateStock = functions.https.onCall(
         "Failed to update stock"
       );
     }
-  });
+  }
+);
 
 export const getInventoryReport = functions.https.onCall(
   {cors: true},
@@ -71,25 +79,15 @@ export const getInventoryReport = functions.https.onCall(
       const products = productsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as unknown as ProductData[];
 
       const summary = {
         totalProducts: products.length,
-        lowStockProducts: products.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (p: any) => p.stock < 10
-        ).length,
-        outOfStockProducts: products.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (p: any) => p.stock === 0
-        ).length,
-        inStockProducts: products.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (p: any) => p.stock > 0
-        ).length,
+        lowStockProducts: products.filter((p) => p.stock < 10).length,
+        outOfStockProducts: products.filter((p) => p.stock === 0).length,
+        inStockProducts: products.filter((p) => p.stock > 0).length,
         totalValue: products.reduce(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (sum: number, p: any) => sum + (p.salePrice * p.stock),
+          (sum, p) => sum + (p.salePrice * p.stock),
           0
         ),
       };
@@ -97,7 +95,7 @@ export const getInventoryReport = functions.https.onCall(
       return {
         success: true,
         summary,
-        products: products.slice(0, 100), // Limit for performance
+        products: products.slice(0, 100),
       };
     } catch (error) {
       console.error("Error getting inventory report:", error);

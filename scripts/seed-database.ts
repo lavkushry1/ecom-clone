@@ -442,11 +442,12 @@ async function seedDatabase() {
 }
 
 // Run the seeder
-if (require.main === module) {
-  seedDatabase().then(() => {
-    console.log('🎉 Seeding process completed!');
-    process.exit(0);
-  });
-}
+seedDatabase().then(() => {
+  console.log('🎉 Seeding process completed!');
+  process.exit(0);
+}).catch((error) => {
+  console.error('Failed to seed database:', error);
+  process.exit(1);
+});
 
 export { seedDatabase };

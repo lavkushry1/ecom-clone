@@ -75,18 +75,12 @@ export const getInventoryReport = functions.https.onCall(
 
       const summary = {
         totalProducts: products.length,
-        lowStockProducts: products.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (p: any) => p.stock < 10
-        ).length,
-        outOfStockProducts: products.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (p: any) => p.stock === 0
-        ).length,
-        inStockProducts: products.filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (p: any) => p.stock > 0
-        ).length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        lowStockProducts: products.filter((p: any) => p.stock < 10).length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        outOfStockProducts: products.filter((p: any) => p.stock === 0).length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        inStockProducts: products.filter((p: any) => p.stock > 0).length,
         totalValue: products.reduce(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (sum: number, p: any) => sum + (p.salePrice * p.stock),

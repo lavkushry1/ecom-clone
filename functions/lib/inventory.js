@@ -86,10 +86,18 @@ exports.getInventoryReport = functions.https.onCall({ cors: true }, async (reque
         const products = productsSnapshot.docs.map((doc) => (Object.assign({ id: doc.id }, doc.data())));
         const summary = {
             totalProducts: products.length,
-            lowStockProducts: products.filter((p) => p.stock < 10).length,
-            outOfStockProducts: products.filter((p) => p.stock === 0).length,
-            inStockProducts: products.filter((p) => p.stock > 0).length,
-            totalValue: products.reduce((sum, p) => sum + (p.salePrice * p.stock), 0),
+            lowStockProducts: products.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (p) => p.stock < 10).length,
+            outOfStockProducts: products.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (p) => p.stock === 0).length,
+            inStockProducts: products.filter(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (p) => p.stock > 0).length,
+            totalValue: products.reduce(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (sum, p) => sum + (p.salePrice * p.stock), 0),
         };
         return {
             success: true,

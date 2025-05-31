@@ -1,19 +1,27 @@
 /**
+ * Firebase Functions Entry Point
+ *
  * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ * - Inventory management functions
+ * - Order processing functions
+ * - Payment processing functions
+ * - Product management functions
+ * - Notification functions
+ * - Validation functions
  */
 
-// import {onRequest} from "firebase-functions/v2/https";
-// import * as logger from "firebase-functions/logger";
+import * as admin from "firebase-admin";
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+// Initialize Firebase Admin SDK
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+// Export all functions for deployment
+// Using the cleanest/best version of each function set
+export * from "./inventory-clean";
+export * from "./orders-simple";
+export * from "./notifications";
+export * from "./payment-simple";
+export * from "./products-fixed";
+export * from "./validation";
