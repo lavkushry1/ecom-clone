@@ -33,144 +33,102 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserOrders = exports.getOrderById = exports.updateOrderStatus = exports.processOrder = void 0;
-const functions = __importStar(require("firebase-functions"));
+exports.getUserOrders = exports.getOrderDetails = exports.createOrderProcessingTrigger = void 0;
+const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
-const zod_1 = require("zod");
 const db = admin.firestore();
-exports.processOrder = functions.firestore
-    .document('orders/{orderId}')
-    .onCreate(async (snap, context) => {
-    const orderId = context.params.orderId;
-    const orderData = snap.data();
+// Simple orders functions for v2
+exports.createOrderProcessingTrigger = functions.firestore.onDocumentCreated("orders/{orderId}", async (event) => {
+    var _a;
     try {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        await snap.ref.update({
-            status: 'confirmed',
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            trackingHistory: admin.firestore.FieldValue.arrayUnion({
-                status: 'Order Confirmed',
-                timestamp: new Date().toISOString(),
-                description: 'Your order has been confirmed and is being prepared',
-                location: 'Processing Center'
-            })
-        });
-        for (const item of orderData.items) {
-            const productRef = db.collection('products').doc(item.productId);
-            await productRef.update({
-                stock: admin.firestore.FieldValue.increment(-item.quantity)
+        const orderData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.data();
+        const orderId = event.params.orderId;
+        if (!orderData) {
+            console.error("No order data found");
+            return;
+        }
+        console.log(`Processing new order: ${orderId}`);
+        // Update order status to processing
+        if (event.data) {
+            await event.data.ref.update({
+                status: "processing",
+                processedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
+        // Create notification for user
+        await db.collection("notifications").add({
+            userId: orderData.userId,
+            title: "Order Confirmed",
+            message: `Your order #${orderId} has been confirmed and is being processed.`,
+            type: "order",
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
         console.log(`Order ${orderId} processed successfully`);
-        return { success: true, orderId };
     }
     catch (error) {
-        console.error('Error processing order:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to process order');
+        console.error("Error processing order:", error);
     }
 });
-exports.updateOrderStatus = functions.https.onCall(async (data, context) => {
-    const schema = zod_1.z.object({
-        orderId: zod_1.z.string(),
-        status: zod_1.z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']),
-        trackingInfo: zod_1.z.object({
-            description: zod_1.z.string(),
-            location: zod_1.z.string().optional()
-        }).optional()
-    });
+exports.getOrderDetails = functions.https.onCall({ cors: true }, async (request) => {
+    var _a;
     try {
-        const { orderId, status, trackingInfo } = schema.parse(data);
-        if (!context.auth) {
-            throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+        if (!request.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "Authentication required");
         }
-        const orderRef = db.collection('orders').doc(orderId);
+        const { orderId } = request.data;
+        if (!orderId) {
+            throw new functions.https.HttpsError("invalid-argument", "Order ID required");
+        }
+        const orderRef = db.collection("orders").doc(orderId);
         const orderDoc = await orderRef.get();
         if (!orderDoc.exists) {
-            throw new functions.https.HttpsError('not-found', 'Order not found');
-        }
-        const updateData = {
-            status,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        };
-        if (trackingInfo) {
-            updateData.trackingHistory = admin.firestore.FieldValue.arrayUnion({
-                status: status.charAt(0).toUpperCase() + status.slice(1),
-                timestamp: new Date().toISOString(),
-                description: trackingInfo.description,
-                location: trackingInfo.location || 'Processing Center'
-            });
-        }
-        await orderRef.update(updateData);
-        return { success: true, orderId, status };
-    }
-    catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
-            throw new functions.https.HttpsError('invalid-argument', 'Invalid data provided');
-        }
-        console.error('Error updating order status:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to update order status');
-    }
-});
-exports.getOrderById = functions.https.onCall(async (data, context) => {
-    const schema = zod_1.z.object({
-        orderId: zod_1.z.string()
-    });
-    try {
-        const { orderId } = schema.parse(data);
-        const orderDoc = await db.collection('orders').doc(orderId).get();
-        if (!orderDoc.exists) {
-            throw new functions.https.HttpsError('not-found', 'Order not found');
+            throw new functions.https.HttpsError("not-found", "Order not found");
         }
         const orderData = orderDoc.data();
-        if (context.auth && (orderData === null || orderData === void 0 ? void 0 : orderData.userId) !== context.auth.uid) {
-            throw new functions.https.HttpsError('permission-denied', 'Access denied');
+        // Check if user owns this order or is admin
+        const isOwner = (orderData === null || orderData === void 0 ? void 0 : orderData.userId) === request.auth.uid;
+        const isAdmin = ((_a = request.auth.token) === null || _a === void 0 ? void 0 : _a.admin) === true;
+        if (!isOwner && !isAdmin) {
+            throw new functions.https.HttpsError("permission-denied", "Access denied");
         }
         return {
-            id: orderDoc.id,
-            ...orderData
+            success: true,
+            order: Object.assign({ id: orderDoc.id }, orderData),
         };
     }
     catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
-            throw new functions.https.HttpsError('invalid-argument', 'Invalid data provided');
+        console.error("Error getting order details:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
         }
-        console.error('Error getting order:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to get order');
+        throw new functions.https.HttpsError("internal", "Failed to get order details");
     }
 });
-exports.getUserOrders = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-    }
-    const schema = zod_1.z.object({
-        limit: zod_1.z.number().optional().default(20),
-        status: zod_1.z.string().optional()
-    });
+exports.getUserOrders = functions.https.onCall({ cors: true }, async (request) => {
     try {
-        const { limit, status } = schema.parse(data);
-        let query = db.collection('orders')
-            .where('userId', '==', context.auth.uid)
-            .orderBy('createdAt', 'desc')
-            .limit(limit);
-        if (status) {
-            query = query.where('status', '==', status);
+        if (!request.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "Authentication required");
         }
-        const snapshot = await query.get();
-        const orders = [];
-        snapshot.forEach(doc => {
-            orders.push({
-                id: doc.id,
-                ...doc.data()
-            });
-        });
-        return { orders };
+        const userId = request.auth.uid;
+        const ordersSnapshot = await db
+            .collection("orders")
+            .where("userId", "==", userId)
+            .orderBy("createdAt", "desc")
+            .limit(50)
+            .get();
+        const orders = ordersSnapshot.docs.map((doc) => (Object.assign({ id: doc.id }, doc.data())));
+        return {
+            success: true,
+            orders,
+        };
     }
     catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
-            throw new functions.https.HttpsError('invalid-argument', 'Invalid data provided');
+        console.error("Error getting user orders:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
         }
-        console.error('Error getting user orders:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to get orders');
+        throw new functions.https.HttpsError("internal", "Failed to get user orders");
     }
 });
 //# sourceMappingURL=orders.js.map

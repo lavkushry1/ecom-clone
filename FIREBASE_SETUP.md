@@ -78,7 +78,7 @@ ADMIN_SECRET_KEY=your_secure_admin_key_here
 ```bash
 npm install -g firebase-tools
 firebase login
-firebase init
+
 ```
 
 ### 6. Test Configuration

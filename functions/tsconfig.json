@@ -1,28 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "module": "commonjs",
-    "lib": ["ES2018"],
-    "outDir": "./lib",
-    "rootDir": "./src",
-    "removeComments": true,
-    "strict": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    "module": "NodeNext",
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "moduleResolution": "nodenext",
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "outDir": "lib",
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2017",
+    "skipLibCheck": true
   },
+  "compileOnSave": true,
   "include": [
-    "src/**/*"
+    "src"
   ],
   "exclude": [
     "node_modules",
-    "lib"
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "src/**/*.disabled.ts"
   ]
 }

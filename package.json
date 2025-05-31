@@ -19,6 +19,7 @@
     "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
+    "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@hookform/resolvers": "^3.3.0",
     "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-dialog": "^1.1.14",

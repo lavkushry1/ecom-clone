@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "your-project-id"
+    "default": "your-project-id",
+    "staging": "elite-matter-460118-d1"
   },
   "targets": {
     "your-project-id": {
@@ -10,5 +11,6 @@
         ]
       }
     }
-  }
+  },
+  "etags": {}
 }

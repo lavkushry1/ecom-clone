@@ -1,89 +1,19 @@
-import * as functions from 'firebase-functions'
-import * as admin from 'firebase-admin'
+/**
+ * Import function triggers from their respective submodules:
+ *
+ * import {onCall} from "firebase-functions/v2/https";
+ * import {onDocumentWritten} from "firebase-functions/v2/firestore";
+ *
+ * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ */
 
-// Initialize Firebase Admin
-admin.initializeApp()
+// import {onRequest} from "firebase-functions/v2/https";
+// import * as logger from "firebase-functions/logger";
 
-// Import all function modules
-import { 
-  processOrder, 
-  updateOrderStatus,
-  getOrderById,
-  getUserOrders 
-} from './orders'
+// Start writing functions
+// https://firebase.google.com/docs/functions/typescript
 
-import { 
-  generateUPIPaymentDetails,
-  verifyPaymentStatus,
-  processPayment 
-} from './payment'
-
-import { 
-  validateZipCode,
-  validateEmail,
-  validatePhone 
-} from './validation'
-
-import { 
-  sendOrderConfirmation,
-  sendOrderStatusUpdate,
-  sendNotification
-} from './notifications'
-
-import {
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  searchProducts,
-  getProductRecommendations
-} from './products'
-
-import {
-  updateStock,
-  bulkUpdateStock,
-  setStockAlert,
-  createRestockRequest,
-  getInventoryReport,
-  updateStockOnOrder,
-  restoreStockOnOrderCancel
-} from './inventory'
-
-// Export all Cloud Functions
-export {
-  // Order Functions
-  processOrder,
-  updateOrderStatus,
-  getOrderById,
-  getUserOrders,
-  
-  // Payment Functions
-  generateUPIPaymentDetails,
-  verifyPaymentStatus,
-  processPayment,
-  
-  // Validation Functions
-  validateZipCode,
-  validateEmail,
-  validatePhone,
-  
-  // Notification Functions
-  sendOrderConfirmation,
-  sendOrderStatusUpdate,
-  sendNotification,
-  
-  // Product Functions
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  searchProducts,
-  getProductRecommendations,
-  
-  // Inventory Functions
-  updateStock,
-  bulkUpdateStock,
-  setStockAlert,
-  createRestockRequest,
-  getInventoryReport,
-  updateStockOnOrder,
-  restoreStockOnOrderCancel
-}
+// export const helloWorld = onRequest((request, response) => {
+//   logger.info("Hello logs!", {structuredData: true});
+//   response.send("Hello from Firebase!");
+// });

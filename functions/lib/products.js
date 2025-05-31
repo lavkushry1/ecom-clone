@@ -32,12 +32,24 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateInventory = exports.bulkUpdateProducts = exports.getProductRecommendations = exports.searchProducts = exports.deleteProduct = exports.updateProduct = exports.createProduct = void 0;
-const functions = __importStar(require("firebase-functions"));
+exports.searchProducts = exports.deleteProduct = exports.updateProduct = exports.createProduct = void 0;
+const functions = __importStar(require("firebase-functions/v2"));
 const admin = __importStar(require("firebase-admin"));
 const zod_1 = require("zod");
 const db = admin.firestore();
+// Validation schemas
 const createProductSchema = zod_1.z.object({
     name: zod_1.z.string().min(1).max(200),
     description: zod_1.z.string().min(1).max(5000),
@@ -50,379 +62,199 @@ const createProductSchema = zod_1.z.object({
     stock: zod_1.z.number().min(0),
     specifications: zod_1.z.record(zod_1.z.string()),
     tags: zod_1.z.array(zod_1.z.string()),
-    isActive: zod_1.z.boolean().default(true)
+    isActive: zod_1.z.boolean().default(true),
 });
 const updateProductSchema = createProductSchema.partial();
 const searchProductsSchema = zod_1.z.object({
     query: zod_1.z.string().optional(),
     category: zod_1.z.string().optional(),
-    subcategory: zod_1.z.string().optional(),
-    brand: zod_1.z.string().optional(),
-    minPrice: zod_1.z.number().optional(),
-    maxPrice: zod_1.z.number().optional(),
-    inStock: zod_1.z.boolean().optional(),
-    sortBy: zod_1.z.enum(['price_low', 'price_high', 'rating', 'newest', 'popularity']).optional(),
+    minPrice: zod_1.z.number().min(0).optional(),
+    maxPrice: zod_1.z.number().min(0).optional(),
+    sortBy: zod_1.z.enum([
+        "price_low",
+        "price_high",
+        "rating",
+        "newest",
+        "popularity",
+    ]).optional(),
     page: zod_1.z.number().min(1).default(1),
-    limit: zod_1.z.number().min(1).max(50).default(20)
+    limit: zod_1.z.number().min(1).max(50).default(20),
 });
-exports.createProduct = functions.https.onCall(async (data, context) => {
-    var _a, _b;
+// Create product (Admin only)
+exports.createProduct = functions.https.onCall({ cors: true }, async (request) => {
+    var _a;
     try {
-        if (!((_b = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.token) === null || _b === void 0 ? void 0 : _b.admin)) {
-            throw new functions.https.HttpsError('permission-denied', 'Admin access required');
+        // Check if user is authenticated and is admin
+        if (!request.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "Authentication required");
         }
-        const validatedData = createProductSchema.parse(data);
-        const productRef = db.collection('products').doc();
-        const product = {
-            id: productRef.id,
-            ...validatedData,
-            slug: generateSlug(validatedData.name),
-            ratings: {
+        const isAdmin = ((_a = request.auth.token) === null || _a === void 0 ? void 0 : _a.admin) === true;
+        if (!isAdmin) {
+            throw new functions.https.HttpsError("permission-denied", "Admin access required");
+        }
+        // Validate input data
+        const validatedData = createProductSchema.parse(request.data);
+        // Create product document
+        const productRef = db.collection("products").doc();
+        const productData = Object.assign(Object.assign({}, validatedData), { id: productRef.id, reviews: {
                 average: 0,
-                count: 0
-            },
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        };
-        await productRef.set(product);
-        await updateCategoryProductCount(validatedData.category, 1);
+                count: 0,
+            }, createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        await productRef.set(productData);
         return {
             success: true,
             productId: productRef.id,
-            message: 'Product created successfully'
+            message: "Product created successfully",
         };
     }
     catch (error) {
-        console.error('Error creating product:', error);
-        if (error instanceof zod_1.z.ZodError) {
-            throw new functions.https.HttpsError('invalid-argument', error.message);
+        console.error("Error creating product:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
         }
-        throw new functions.https.HttpsError('internal', 'Failed to create product');
+        throw new functions.https.HttpsError("internal", "Failed to create product");
     }
 });
-exports.updateProduct = functions.https.onCall(async (data, context) => {
-    var _a, _b;
+// Update product (Admin only)
+exports.updateProduct = functions.https.onCall({ cors: true }, async (request) => {
+    var _a;
     try {
-        if (!((_b = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.token) === null || _b === void 0 ? void 0 : _b.admin)) {
-            throw new functions.https.HttpsError('permission-denied', 'Admin access required');
+        if (!request.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "Authentication required");
         }
-        const { productId, ...updates } = data;
+        const isAdmin = ((_a = request.auth.token) === null || _a === void 0 ? void 0 : _a.admin) === true;
+        if (!isAdmin) {
+            throw new functions.https.HttpsError("permission-denied", "Admin access required");
+        }
+        const _b = request.data, { productId } = _b, updateData = __rest(_b, ["productId"]);
         if (!productId) {
-            throw new functions.https.HttpsError('invalid-argument', 'Product ID is required');
+            throw new functions.https.HttpsError("invalid-argument", "Product ID is required");
         }
-        const validatedUpdates = updateProductSchema.parse(updates);
-        const productRef = db.collection('products').doc(productId);
-        const productSnap = await productRef.get();
-        if (!productSnap.exists) {
-            throw new functions.https.HttpsError('not-found', 'Product not found');
+        const validatedData = updateProductSchema.parse(updateData);
+        const productRef = db.collection("products").doc(productId);
+        const productDoc = await productRef.get();
+        if (!productDoc.exists) {
+            throw new functions.https.HttpsError("not-found", "Product not found");
         }
-        const existingProduct = productSnap.data();
-        const updatedProduct = {
-            ...validatedUpdates,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        };
-        if (validatedUpdates.name && validatedUpdates.name !== (existingProduct === null || existingProduct === void 0 ? void 0 : existingProduct.name)) {
-            updatedProduct.slug = generateSlug(validatedUpdates.name);
-        }
-        await productRef.update(updatedProduct);
-        if (validatedUpdates.category && validatedUpdates.category !== (existingProduct === null || existingProduct === void 0 ? void 0 : existingProduct.category)) {
-            await updateCategoryProductCount(existingProduct === null || existingProduct === void 0 ? void 0 : existingProduct.category, -1);
-            await updateCategoryProductCount(validatedUpdates.category, 1);
-        }
+        await productRef.update(Object.assign(Object.assign({}, validatedData), { updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
         return {
             success: true,
-            message: 'Product updated successfully'
+            productId,
+            message: "Product updated successfully",
         };
     }
     catch (error) {
-        console.error('Error updating product:', error);
-        if (error instanceof zod_1.z.ZodError) {
-            throw new functions.https.HttpsError('invalid-argument', error.message);
+        console.error("Error updating product:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
         }
-        throw new functions.https.HttpsError('internal', 'Failed to update product');
+        throw new functions.https.HttpsError("internal", "Failed to update product");
     }
 });
-exports.deleteProduct = functions.https.onCall(async (data, context) => {
-    var _a, _b;
+// Delete product (Admin only)
+exports.deleteProduct = functions.https.onCall({ cors: true }, async (request) => {
+    var _a;
     try {
-        if (!((_b = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.token) === null || _b === void 0 ? void 0 : _b.admin)) {
-            throw new functions.https.HttpsError('permission-denied', 'Admin access required');
+        if (!request.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "Authentication required");
         }
-        const { productId } = data;
+        const isAdmin = ((_a = request.auth.token) === null || _a === void 0 ? void 0 : _a.admin) === true;
+        if (!isAdmin) {
+            throw new functions.https.HttpsError("permission-denied", "Admin access required");
+        }
+        const { productId } = request.data;
         if (!productId) {
-            throw new functions.https.HttpsError('invalid-argument', 'Product ID is required');
+            throw new functions.https.HttpsError("invalid-argument", "Product ID is required");
         }
-        const productRef = db.collection('products').doc(productId);
-        const productSnap = await productRef.get();
-        if (!productSnap.exists) {
-            throw new functions.https.HttpsError('not-found', 'Product not found');
+        const productRef = db.collection("products").doc(productId);
+        const productDoc = await productRef.get();
+        if (!productDoc.exists) {
+            throw new functions.https.HttpsError("not-found", "Product not found");
         }
-        const product = productSnap.data();
         await productRef.delete();
-        if (product === null || product === void 0 ? void 0 : product.category) {
-            await updateCategoryProductCount(product.category, -1);
-        }
-        const wishlistsQuery = db.collection('wishlists').where('productIds', 'array-contains', productId);
-        const wishlistsSnap = await wishlistsQuery.get();
-        const batch = db.batch();
-        wishlistsSnap.docs.forEach(doc => {
-            const wishlist = doc.data();
-            const updatedProductIds = wishlist.productIds.filter((id) => id !== productId);
-            batch.update(doc.ref, { productIds: updatedProductIds });
-        });
-        await batch.commit();
         return {
             success: true,
-            message: 'Product deleted successfully'
+            productId,
+            message: "Product deleted successfully",
         };
     }
     catch (error) {
-        console.error('Error deleting product:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to delete product');
+        console.error("Error deleting product:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError("internal", "Failed to delete product");
     }
 });
-exports.searchProducts = functions.https.onCall(async (data, context) => {
+// Search products
+exports.searchProducts = functions.https.onCall({ cors: true }, async (request) => {
     try {
-        const validatedData = searchProductsSchema.parse(data);
-        const { query, category, subcategory, brand, minPrice, maxPrice, inStock, sortBy, page, limit } = validatedData;
-        let productsQuery = db.collection('products');
-        productsQuery = productsQuery.where('isActive', '==', true);
-        if (category) {
-            productsQuery = productsQuery.where('category', '==', category);
+        const validatedData = searchProductsSchema.parse(request.data);
+        let query = db.collection("products");
+        // Apply filters
+        if (validatedData.category) {
+            query = query.where("category", "==", validatedData.category);
         }
-        if (subcategory) {
-            productsQuery = productsQuery.where('subcategory', '==', subcategory);
+        if (validatedData.minPrice !== undefined) {
+            query = query.where("salePrice", ">=", validatedData.minPrice);
         }
-        if (brand) {
-            productsQuery = productsQuery.where('brand', '==', brand);
+        if (validatedData.maxPrice !== undefined) {
+            query = query.where("salePrice", "<=", validatedData.maxPrice);
         }
-        if (inStock) {
-            productsQuery = productsQuery.where('stock', '>', 0);
-        }
-        switch (sortBy) {
-            case 'price_low':
-                productsQuery = productsQuery.orderBy('salePrice', 'asc');
-                break;
-            case 'price_high':
-                productsQuery = productsQuery.orderBy('salePrice', 'desc');
-                break;
-            case 'rating':
-                productsQuery = productsQuery.orderBy('ratings.average', 'desc');
-                break;
-            case 'newest':
-                productsQuery = productsQuery.orderBy('createdAt', 'desc');
-                break;
-            default:
-                productsQuery = productsQuery.orderBy('createdAt', 'desc');
-        }
-        const snapshot = await productsQuery.get();
-        let products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (query) {
-            const searchTerm = query.toLowerCase();
-            products = products.filter(product => product.name.toLowerCase().includes(searchTerm) ||
-                product.description.toLowerCase().includes(searchTerm) ||
-                product.tags.some((tag) => tag.toLowerCase().includes(searchTerm)));
-        }
-        if (minPrice !== undefined || maxPrice !== undefined) {
-            products = products.filter(product => {
-                const price = product.salePrice;
-                return (minPrice === undefined || price >= minPrice) &&
-                    (maxPrice === undefined || price <= maxPrice);
-            });
-        }
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + limit;
-        const paginatedProducts = products.slice(startIndex, endIndex);
-        return {
-            success: true,
-            products: paginatedProducts,
-            pagination: {
-                page,
-                limit,
-                total: products.length,
-                totalPages: Math.ceil(products.length / limit),
-                hasMore: endIndex < products.length
+        // Only show active products
+        query = query.where("isActive", "==", true);
+        // Apply sorting
+        if (validatedData.sortBy) {
+            switch (validatedData.sortBy) {
+                case "price_low":
+                    query = query.orderBy("salePrice", "asc");
+                    break;
+                case "price_high":
+                    query = query.orderBy("salePrice", "desc");
+                    break;
+                case "rating":
+                    query = query.orderBy("reviews.average", "desc");
+                    break;
+                case "newest":
+                    query = query.orderBy("createdAt", "desc");
+                    break;
+                default:
+                    query = query.orderBy("createdAt", "desc");
             }
-        };
-    }
-    catch (error) {
-        console.error('Error searching products:', error);
-        if (error instanceof zod_1.z.ZodError) {
-            throw new functions.https.HttpsError('invalid-argument', error.message);
         }
-        throw new functions.https.HttpsError('internal', 'Failed to search products');
-    }
-});
-exports.getProductRecommendations = functions.https.onCall(async (data, context) => {
-    try {
-        const { productId, userId, type = 'similar', limit = 8 } = data;
-        if (!productId) {
-            throw new functions.https.HttpsError('invalid-argument', 'Product ID is required');
+        else {
+            query = query.orderBy("createdAt", "desc");
         }
-        const productRef = db.collection('products').doc(productId);
-        const productSnap = await productRef.get();
-        if (!productSnap.exists) {
-            throw new functions.https.HttpsError('not-found', 'Product not found');
-        }
-        const currentProduct = productSnap.data();
-        let recommendations = [];
-        switch (type) {
-            case 'similar':
-                recommendations = await getSimilarProducts(currentProduct, limit);
-                break;
-            case 'related':
-                recommendations = await getRelatedProducts(currentProduct, limit);
-                break;
-            case 'trending':
-                recommendations = await getTrendingProducts(limit);
-                break;
-            case 'personalized':
-                if (userId) {
-                    recommendations = await getPersonalizedRecommendations(userId, limit);
-                }
-                else {
-                    recommendations = await getTrendingProducts(limit);
-                }
-                break;
-            default:
-                recommendations = await getSimilarProducts(currentProduct, limit);
-        }
-        return {
-            success: true,
-            recommendations,
-            type
-        };
-    }
-    catch (error) {
-        console.error('Error getting product recommendations:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to get recommendations');
-    }
-});
-exports.bulkUpdateProducts = functions.https.onCall(async (data, context) => {
-    var _a, _b;
-    try {
-        if (!((_b = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.token) === null || _b === void 0 ? void 0 : _b.admin)) {
-            throw new functions.https.HttpsError('permission-denied', 'Admin access required');
-        }
-        const { productIds, updates } = data;
-        if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
-            throw new functions.https.HttpsError('invalid-argument', 'Product IDs array is required');
-        }
-        const validatedUpdates = updateProductSchema.parse(updates);
-        const batch = db.batch();
-        productIds.forEach((productId) => {
-            const productRef = db.collection('products').doc(productId);
-            batch.update(productRef, {
-                ...validatedUpdates,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-        });
-        await batch.commit();
-        return {
-            success: true,
-            message: `${productIds.length} products updated successfully`
-        };
-    }
-    catch (error) {
-        console.error('Error bulk updating products:', error);
-        if (error instanceof zod_1.z.ZodError) {
-            throw new functions.https.HttpsError('invalid-argument', error.message);
-        }
-        throw new functions.https.HttpsError('internal', 'Failed to bulk update products');
-    }
-});
-function generateSlug(name) {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-}
-async function updateCategoryProductCount(categoryName, increment) {
-    try {
-        const categoryRef = db.collection('categories').doc(categoryName);
-        await categoryRef.update({
-            productCount: admin.firestore.FieldValue.increment(increment)
-        });
-    }
-    catch (error) {
-        if (error.code === 'not-found') {
-            const categoryRef = db.collection('categories').doc(categoryName);
-            await categoryRef.set({
-                name: categoryName,
-                slug: generateSlug(categoryName),
-                productCount: Math.max(0, increment),
-                isActive: true,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
+        // Apply pagination
+        const offset = (validatedData.page - 1) * validatedData.limit;
+        query = query.offset(offset).limit(validatedData.limit);
+        const snapshot = await query.get();
+        const products = snapshot.docs.map((doc) => (Object.assign({ id: doc.id }, doc.data())));
+        // Text search if query is provided
+        let filteredProducts = products;
+        if (validatedData.query) {
+            const searchTerm = validatedData.query.toLowerCase();
+            filteredProducts = products.filter((product) => {
+                var _a, _b, _c, _d;
+                return ((_a = product.name) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(searchTerm)) ||
+                    ((_b = product.description) === null || _b === void 0 ? void 0 : _b.toLowerCase().includes(searchTerm)) ||
+                    ((_c = product.brand) === null || _c === void 0 ? void 0 : _c.toLowerCase().includes(searchTerm)) ||
+                    ((_d = product.tags) === null || _d === void 0 ? void 0 : _d.some((tag) => tag.toLowerCase().includes(searchTerm)));
             });
         }
-    }
-}
-async function getSimilarProducts(currentProduct, limit) {
-    const productsRef = db.collection('products');
-    const query = productsRef
-        .where('category', '==', currentProduct.category)
-        .where('isActive', '==', true)
-        .limit(limit + 1);
-    const snapshot = await query.get();
-    return snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(product => product.id !== currentProduct.id)
-        .slice(0, limit);
-}
-async function getRelatedProducts(currentProduct, limit) {
-    const productsRef = db.collection('products');
-    const query = productsRef
-        .where('brand', '==', currentProduct.brand)
-        .where('isActive', '==', true)
-        .limit(limit + 1);
-    const snapshot = await query.get();
-    return snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(product => product.id !== currentProduct.id)
-        .slice(0, limit);
-}
-async function getTrendingProducts(limit) {
-    const productsRef = db.collection('products');
-    const query = productsRef
-        .where('isActive', '==', true)
-        .orderBy('ratings.average', 'desc')
-        .limit(limit);
-    const snapshot = await query.get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-}
-async function getPersonalizedRecommendations(userId, limit) {
-    return await getTrendingProducts(limit);
-}
-exports.updateInventory = functions.https.onCall(async (data, context) => {
-    var _a, _b, _c;
-    try {
-        if (!((_b = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.token) === null || _b === void 0 ? void 0 : _b.admin)) {
-            throw new functions.https.HttpsError('permission-denied', 'Admin access required');
-        }
-        const { productId, stockChange } = data;
-        if (!productId || stockChange === undefined) {
-            throw new functions.https.HttpsError('invalid-argument', 'Product ID and stock change are required');
-        }
-        const productRef = db.collection('products').doc(productId);
-        const productSnap = await productRef.get();
-        if (!productSnap.exists) {
-            throw new functions.https.HttpsError('not-found', 'Product not found');
-        }
-        const currentStock = ((_c = productSnap.data()) === null || _c === void 0 ? void 0 : _c.stock) || 0;
-        const newStock = Math.max(0, currentStock + stockChange);
-        await productRef.update({
-            stock: newStock,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
         return {
             success: true,
-            newStock,
-            message: 'Inventory updated successfully'
+            products: filteredProducts,
+            pagination: {
+                page: validatedData.page,
+                limit: validatedData.limit,
+                total: filteredProducts.length,
+            },
         };
     }
     catch (error) {
-        console.error('Error updating inventory:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to update inventory');
+        console.error("Error searching products:", error);
+        throw new functions.https.HttpsError("internal", "Failed to search products");
     }
 });
 //# sourceMappingURL=products.js.map

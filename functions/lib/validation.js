@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.validatePhone = exports.validateEmail = exports.validateZipCode = void 0;
 const functions = __importStar(require("firebase-functions"));
 const zod_1 = require("zod");
+// Validate ZIP code
 exports.validateZipCode = functions.https.onCall(async (data, context) => {
     const schema = zod_1.z.object({
         zipCode: zod_1.z.string().min(5).max(10),
@@ -48,16 +49,18 @@ exports.validateZipCode = functions.https.onCall(async (data, context) => {
     });
     try {
         const { zipCode, address } = schema.parse(data);
+        // For demo purposes, consider ZIP codes starting with '9' as invalid
         const isValid = !zipCode.startsWith('9');
         let suggestions = [];
         if (!isValid && address) {
+            // Provide address correction suggestions
             suggestions = [
                 {
                     addressLine1: address.addressLine1,
                     addressLine2: address.addressLine2,
                     city: address.city,
                     state: address.state,
-                    zipCode: zipCode.replace(/^9/, '1'),
+                    zipCode: zipCode.replace(/^9/, '1'), // Suggest replacing first digit
                     confidence: 0.9
                 },
                 {
@@ -86,12 +89,14 @@ exports.validateZipCode = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', 'ZIP code validation failed');
     }
 });
+// Validate email
 exports.validateEmail = functions.https.onCall(async (data, context) => {
     const schema = zod_1.z.object({
         email: zod_1.z.string().email()
     });
     try {
         const { email } = schema.parse(data);
+        // Simple email validation (in production, might check against email service)
         const isValid = zod_1.z.string().email().safeParse(email).success;
         return {
             isValid,
@@ -108,6 +113,7 @@ exports.validateEmail = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', 'Email validation failed');
     }
 });
+// Validate phone number
 exports.validatePhone = functions.https.onCall(async (data, context) => {
     const schema = zod_1.z.object({
         phone: zod_1.z.string(),
@@ -115,6 +121,7 @@ exports.validatePhone = functions.https.onCall(async (data, context) => {
     });
     try {
         const { phone, countryCode } = schema.parse(data);
+        // Simple Indian phone number validation
         const cleanPhone = phone.replace(/\D/g, '');
         const isValid = countryCode === '+91' ?
             /^[6-9]\d{9}$/.test(cleanPhone) :

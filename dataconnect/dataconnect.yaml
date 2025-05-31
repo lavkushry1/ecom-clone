@@ -1,0 +1,12 @@
+specVersion: "v1"
+serviceId: "ecm"
+location: "asia-south1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "ecmfdc"
+      cloudSql:
+        instanceId: "ecm-fdc"
+      # schemaValidation: "COMPATIBLE"
+connectorDirs: ["./connector"]

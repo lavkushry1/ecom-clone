@@ -1,66 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read access to all users for products and categories
-    match /products/{productId} {
-      allow read: if true;
-      allow write: if request.auth != null && 
-        resource.data.isActive == true &&
-        request.auth.token.admin == true;
-    }
-    
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if request.auth != null && 
-        request.auth.token.admin == true;
-    }
-    
-    // User documents can only be accessed by the owner
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Cart documents
-    match /carts/{cartId} {
-      allow read, write: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || 
-         resource.data.sessionId == request.headers['x-session-id']);
-      // Allow guest carts based on session ID
-      allow create: if request.auth == null && 
-        request.resource.data.sessionId == request.headers['x-session-id'];
-    }
-    
-    // Orders can be read by the owner or admin
-    match /orders/{orderId} {
-      allow read: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || 
-         request.auth.token.admin == true);
-      allow create: if request.auth != null || 
-        request.resource.data.customerInfo.email != null;
-      allow update: if request.auth != null && 
-        request.auth.token.admin == true;
-    }
-    
-    // Wishlist documents
-    match /wishlists/{wishlistId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-    }
-    
-    // Reviews can be read by anyone, written by authenticated users
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.userId;
-      allow update, delete: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || 
-         request.auth.token.admin == true);
-    }
-    
-    // Admin only collections
-    match /admin/{document=**} {
-      allow read, write: if request.auth != null && 
-        request.auth.token.admin == true;
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
-}
+} 
